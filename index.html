@@ -10,165 +10,186 @@
   box-sizing:border-box;
 }
 
-html,body{
-  margin:0;
-  padding:0;
-  width:100%;
-  min-height:100%;
-}
-
 body{
-  background:#eee4d0;
-  color:#49372a;
-  font-family:-apple-system,BlinkMacSystemFont,
-    "Helvetica Neue","Noto Sans JP",sans-serif;
+  margin:0;
+  min-height:100vh;
+  background:#f7f0e7;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",
+              "Yu Gothic",sans-serif;
+  color:#665c58;
+  display:flex;
+  justify-content:center;
+  align-items:center;
 }
 
-.container{
-  width:94%;
-  max-width:680px;
-  margin:0 auto;
-  padding:25px 0 45px;
+.app{
+  width:min(92vw,700px);
+  text-align:center;
 }
 
 h1{
-  text-align:center;
+  margin:0 0 8px;
   font-size:30px;
-  margin:0 0 5px;
+  font-weight:700;
+  letter-spacing:.08em;
 }
 
-.description{
-  text-align:center;
+.sub{
+  margin-bottom:24px;
   font-size:14px;
-  opacity:.65;
-  margin-bottom:20px;
+  color:#9a908b;
 }
 
 textarea{
-  display:block;
   width:100%;
-  height:125px;
-
-  padding:14px;
-
-  border:3px solid #76543b;
-  border-radius:17px;
-
-  background:#fffaf0;
-
-  color:#49372a;
-
+  height:100px;
+  border:0;
+  border-radius:22px;
+  padding:18px;
+  resize:none;
+  background:#fffaf5;
+  box-shadow:0 6px 20px rgba(100,80,60,.08);
   font-size:16px;
-
-  resize:vertical;
-
   outline:none;
+  color:#665c58;
+}
+
+textarea:focus{
+  box-shadow:0 0 0 3px #ead8d0;
 }
 
 button{
-  display:block;
-
-  width:100%;
-
-  margin-top:12px;
-
-  padding:15px;
-
+  margin-top:14px;
   border:0;
-
-  border-radius:15px;
-
-  background:#76543b;
-
-  color:#fff;
-
-  font-size:17px;
-
+  border-radius:999px;
+  padding:13px 28px;
+  background:#dcbfae;
+  color:white;
+  font-size:15px;
   font-weight:bold;
+  cursor:pointer;
 }
 
-.code-card{
-  margin-top:22px;
-
-  padding:15px;
-
-  border-radius:24px;
-
-  background:#fffaf0;
-
-  box-shadow:0 7px 22px rgba(0,0,0,.12);
+button:active{
+  transform:scale(.97);
 }
 
-
-/* ======================================
-   ポテコード本体
-====================================== */
+.card{
+  margin-top:28px;
+  background:#fffaf5;
+  border-radius:34px;
+  padding:25px;
+  box-shadow:0 12px 35px rgba(100,80,60,.10);
+}
 
 #poteCode{
-
   position:relative;
-
-  width:100%;
-
+  width:min(82vw,520px);
   aspect-ratio:1;
-
+  margin:auto;
   overflow:hidden;
-
-  border-radius:50%;
-
-  background:#e6d3b0;
-
-  box-shadow:
-    inset 0 0 0 6px #cfb48a,
-    inset 0 0 30px rgba(80,50,20,.10);
-
+  background:#f4e9df;
+  border-radius:25px;
 }
 
+/* --------------------------------
+   固定マーカー
+-------------------------------- */
 
-/* ======================================
-   図形
-====================================== */
-
-.pote-shape{
-
+.marker{
   position:absolute;
-
-  left:0;
-  top:0;
-
-  transform:translate(-50%,-50%);
-
+  width:38px;
+  height:38px;
+  border-radius:11px;
+  background:#8c7d76;
+  z-index:20;
 }
 
-
-/* 丸 */
-
-.shape-circle{
-  border-radius:50%;
-}
-
-
-/* 四角 */
-
-.shape-square{
+.marker::after{
+  content:"";
+  position:absolute;
+  inset:8px;
+  background:#f4e9df;
   border-radius:5px;
 }
 
+.m1{
+  left:18px;
+  top:18px;
+}
+
+.m2{
+  right:18px;
+  top:18px;
+}
+
+.m3{
+  left:18px;
+  bottom:18px;
+}
+
+/* --------------------------------
+   図形
+-------------------------------- */
+
+.shape{
+  position:absolute;
+  transform-origin:center;
+  z-index:3;
+  opacity:.93;
+}
+
+/* 正方形ではない四角形 */
+
+.rect-wide{
+  width:34px;
+  height:19px;
+  border-radius:5px;
+}
+
+.rect-tall{
+  width:19px;
+  height:35px;
+  border-radius:6px;
+}
+
+.rect-soft{
+  width:31px;
+  height:25px;
+  border-radius:10px 5px 8px 6px;
+}
+
+.rect-slant{
+  width:32px;
+  height:21px;
+  border-radius:4px 10px 5px 7px;
+}
 
 /* ひし形 */
 
-.shape-diamond{
-  transform:
-    translate(-50%,-50%)
-    rotate(45deg);
-
-  border-radius:4px;
+.diamond{
+  width:25px;
+  height:25px;
+  transform:rotate(45deg);
+  border-radius:5px;
 }
 
+/* 三角 */
+
+.triangle{
+  width:0;
+  height:0;
+  border-left:15px solid transparent;
+  border-right:15px solid transparent;
+  border-bottom:27px solid currentColor;
+  background:transparent!important;
+}
 
 /* 六角形 */
 
-.shape-hex{
+.hex{
+  width:29px;
+  height:25px;
   clip-path:polygon(
     25% 0%,
     75% 0%,
@@ -179,913 +200,483 @@ button{
   );
 }
 
+/* いびつな多角形 */
 
-/* 三角 */
-
-.shape-triangle{
-
-  width:0 !important;
-  height:0 !important;
-
-  background:transparent !important;
-
-  border-left:11px solid transparent;
-  border-right:11px solid transparent;
-  border-bottom:20px solid currentColor;
-
+.blob{
+  width:29px;
+  height:27px;
+  clip-path:polygon(
+    17% 3%,
+    76% 0%,
+    100% 36%,
+    87% 90%,
+    35% 100%,
+    0% 63%
+  );
 }
 
+/* 小さな丸 */
 
-/* 星 */
+.dot{
+  width:17px;
+  height:17px;
+  border-radius:50%;
+}
 
-.shape-star{
+/* 星っぽい形 */
 
-  background:transparent !important;
-
+.star{
+  width:29px;
+  height:29px;
   clip-path:polygon(
     50% 0%,
     61% 35%,
-    100% 35%,
-    69% 57%,
-    81% 100%,
-    50% 74%,
-    19% 100%,
-    31% 57%,
-    0% 35%,
+    98% 35%,
+    68% 57%,
+    79% 95%,
+    50% 72%,
+    21% 95%,
+    32% 57%,
+    2% 35%,
     39% 35%
   );
-
 }
 
+/* --------------------------------
+   ポテちゃん
+-------------------------------- */
 
-/* 十字 */
-
-.shape-cross{
-
-  clip-path:polygon(
-    35% 0%,
-    65% 0%,
-    65% 35%,
-    100% 35%,
-    100% 65%,
-    65% 65%,
-    65% 100%,
-    35% 100%,
-    35% 65%,
-    0% 65%,
-    0% 35%,
-    35% 35%
-  );
-
-}
-
-
-/* 花 */
-
-.shape-flower{
-
-  clip-path:polygon(
-    50% 0%,
-    64% 27%,
-    100% 25%,
-    75% 50%,
-    100% 75%,
-    64% 73%,
-    50% 100%,
-    36% 73%,
-    0% 75%,
-    25% 50%,
-    0% 25%,
-    36% 27%
-  );
-
-}
-
-
-/* ======================================
-   四隅の基準マーク
-====================================== */
-
-.corner{
+.pote{
   position:absolute;
-
-  width:27px;
-  height:27px;
-
-  background:#3d3027;
-
-  z-index:8;
-}
-
-.corner1{
-  left:7%;
-  top:7%;
-  border-radius:7px;
-}
-
-.corner2{
-  right:7%;
-  top:7%;
-  border-radius:50%;
-}
-
-.corner3{
-  left:7%;
-  bottom:7%;
-
-  clip-path:polygon(
-    50% 0%,
-    100% 50%,
-    50% 100%,
-    0% 50%
-  );
-}
-
-.corner4{
-  right:7%;
-  bottom:7%;
-
-  border-radius:7px;
-
-  transform:rotate(45deg);
-}
-
-
-/* ======================================
-   中央ポテちゃん
-   ★ マーク専用 ★
-====================================== */
-
-.pote-mark{
-
-  position:absolute;
-
   left:50%;
   top:50%;
-
-  width:45px;
-  height:54px;
-
+  width:58px;
+  height:66px;
   transform:translate(-50%,-50%);
-
-  background:#9b653c;
-
-  border-radius:
-    48% 52% 47% 53% /
-    54% 47% 53% 46%;
-
-  box-shadow:
-    inset -4px -5px 0 #80502f,
-    inset 4px 3px 0 #b47747,
-    0 3px 7px rgba(0,0,0,.25);
-
-  z-index:20;
+  background:#a96f45;
+  border-radius:47% 53% 48% 52% / 48% 46% 54% 52%;
+  z-index:30;
+  box-shadow:0 4px 0 rgba(100,65,40,.10);
 }
 
-
-/* 目 */
-
-.pote-eye{
-
+.pote::before,
+.pote::after{
+  content:"";
   position:absolute;
-
-  top:19px;
-
-  width:6px;
+  width:7px;
   height:9px;
-
+  background:#493b35;
   border-radius:50%;
-
-  background:#2d2119;
-
+  top:25px;
 }
 
-.pote-eye-left{
-  left:12px;
+.pote::before{
+  left:17px;
 }
 
-.pote-eye-right{
-  right:12px;
+.pote::after{
+  right:17px;
 }
 
-
-/* 口 */
-
-.pote-mouth{
-
+.mouth{
   position:absolute;
-
   left:50%;
-  top:33px;
-
-  width:10px;
-  height:6px;
-
+  top:39px;
+  width:13px;
+  height:7px;
   transform:translateX(-50%);
-
-  border-bottom:2px solid #2d2119;
-
+  border-bottom:3px solid #493b35;
   border-radius:50%;
-
 }
 
+/* --------------------------------
+   下部表示
+-------------------------------- */
 
-/* ======================================
-   入力情報
-====================================== */
-
-.output{
-
-  margin-top:14px;
-
-  padding:12px;
-
-  border-radius:12px;
-
-  background:#eee4d0;
-
+.result{
+  margin-top:18px;
   font-size:13px;
-
+  color:#968983;
   word-break:break-all;
-
 }
 
 .status{
-
   margin-top:8px;
-
-  text-align:center;
-
   font-size:12px;
-
-  opacity:.6;
-
+  color:#b0a39d;
 }
-
 </style>
 </head>
 
-
 <body>
 
-<div class="container">
+<div class="app">
 
-<h1>🥔 ポテコード</h1>
+  <h1>ポテコード</h1>
+  <div class="sub">文字やURLを、ポテコードに変換</div>
 
-<div class="description">
-文字・URL・日本語などをポテコードに
-</div>
+  <textarea
+    id="input"
+    placeholder="ここに文字・URL・日本語などを入力…"
+  ></textarea>
 
+  <button id="make">
+    ポテコードを作る
+  </button>
 
-<textarea
-  id="inputText"
-  placeholder="ここに文字やURLを入力
+  <div class="card">
 
-例：
-こんにちは
-POTE-123
-https://example.com/
-https://x.gd/Ab12
-"></textarea>
+    <div id="poteCode">
 
+      <!-- 固定マーカー -->
+      <div class="marker m1"></div>
+      <div class="marker m2"></div>
+      <div class="marker m3"></div>
 
-<button id="makeButton">
-ポテコードを作る
-</button>
+      <!-- ポテちゃん -->
+      <div class="pote">
+        <div class="mouth"></div>
+      </div>
 
+    </div>
 
-<div class="code-card">
+    <div class="result" id="result">
+      まだポテコードがありません
+    </div>
 
-<div id="poteCode">
-
-  <!-- 四隅の固定マーク -->
-
-  <div class="corner corner1"></div>
-  <div class="corner corner2"></div>
-  <div class="corner corner3"></div>
-  <div class="corner corner4"></div>
-
-
-  <!-- 中央の固定ポテちゃん -->
-
-  <div class="pote-mark">
-
-    <div class="pote-eye pote-eye-left"></div>
-    <div class="pote-eye pote-eye-right"></div>
-
-    <div class="pote-mouth"></div>
+    <div class="status" id="status">
+      文字を入力してね
+    </div>
 
   </div>
 
 </div>
 
 
-<div class="output">
-
-  <strong>入力：</strong>
-
-  <span id="outputText">---</span>
-
-</div>
-
-
-<div
-  class="status"
-  id="status">
-
-  ポテコードを作ってね
-
-</div>
-
-</div>
-
-</div>
-
-
 <script>
 
-/* ==========================================
-   ポテコード設定
-========================================== */
+/* =====================================
+   ポテコード
+===================================== */
 
-
-/*
-   カメラで判別しやすい濃色。
-
-   赤・青・緑・紫などを使用するが、
-   明るすぎる色は避ける。
-*/
-
-var COLORS = [
-
-  "#315f42",
-  "#24577a",
-  "#744a8b",
-  "#9a542f",
-  "#a43838",
-  "#806b20",
-  "#356b70",
-  "#6f405c"
-
+const COLORS = [
+  "#B8D8D0", // ミント
+  "#BFD7EA", // 水色
+  "#D8C4E8", // 紫
+  "#F1C6C7", // ピンク
+  "#F1D49B", // 黄色
+  "#D2E2B5", // 黄緑
+  "#E8BFA7", // オレンジ
+  "#C7C2DF", // 青紫
+  "#BFD8C2", // 緑
+  "#E6C7D5"  // ローズ
 ];
 
-
-/*
-   図形の種類
-*/
-
-var SHAPES = [
-
-  "circle",
-  "square",
+const SHAPES = [
+  "rect-wide",
+  "rect-tall",
+  "rect-soft",
+  "rect-slant",
   "diamond",
-  "hex",
   "triangle",
-  "star",
-  "cross",
-  "flower"
-
+  "hex",
+  "blob",
+  "dot",
+  "star"
 ];
 
 
-/* ==========================================
-   固定位置を作る
-========================================== */
-
-function createSlots(){
-
-  var slots=[];
-
-
-  /*
-     円状にたくさん配置。
-
-     すべてのポテコードで
-     同じ位置を使用する。
-  */
-
-  var rings=[
-
-    {
-      radius:44,
-      count:24
-    },
-
-    {
-      radius:38,
-      count:22
-    },
-
-    {
-      radius:32,
-      count:20
-    },
-
-    {
-      radius:26,
-      count:16
-    },
-
-    {
-      radius:20,
-      count:12
-    },
-
-    {
-      radius:15,
-      count:8
-    }
-
-  ];
-
-
-  for(
-    var r=0;
-    r<rings.length;
-    r++
-  ){
-
-    var ring=rings[r];
-
-
-    for(
-      var i=0;
-      i<ring.count;
-      i++
-    ){
-
-      var angle=
-        (i/ring.count)*
-        Math.PI*2;
-
-
-      var x=
-        50+
-        Math.cos(angle)*
-        ring.radius;
-
-
-      var y=
-        50+
-        Math.sin(angle)*
-        ring.radius;
-
-
-      /*
-         中央ポテちゃんの
-         周辺を空ける。
-      */
-
-      var dx=x-50;
-      var dy=y-50;
-
-
-      var distance=
-        Math.sqrt(
-          dx*dx+
-          dy*dy
-        );
-
-
-      if(distance>9){
-
-        slots.push({
-          x:x,
-          y:y
-        });
-
-      }
-
-    }
-
-  }
-
-
-  return slots;
-
-}
-
-
-var SLOTS=createSlots();
-
-
-/* ==========================================
-   文字列 → UTF-8
-========================================== */
+/* -------------------------------------
+   文字 → バイト
+------------------------------------- */
 
 function getBytes(text){
 
-  /*
-     TextEncoderが使える環境では
-     UTF-8にする。
-  */
+  const encoder = new TextEncoder();
 
-  if(
-    typeof TextEncoder!=="undefined"
-  ){
-
-    return new TextEncoder()
-      .encode(text);
-
-  }
-
-
-  /*
-     古い環境用の簡易UTF-8変換
-  */
-
-  var encoded=
-    unescape(
-      encodeURIComponent(text)
-    );
-
-  var result=[];
-
-  for(
-    var i=0;
-    i<encoded.length;
-    i++
-  ){
-
-    result.push(
-      encoded.charCodeAt(i)
-    );
-
-  }
-
-  return result;
-
-}
-
-
-/* ==========================================
-   1バイト → 4つの2bit
-========================================== */
-
-function toSymbols(bytes){
-
-  var symbols=[];
-
-
-  for(
-    var i=0;
-    i<bytes.length;
-    i++
-  ){
-
-    var b=bytes[i];
-
-
-    symbols.push(
-      (b>>6)&3
-    );
-
-    symbols.push(
-      (b>>4)&3
-    );
-
-    symbols.push(
-      (b>>2)&3
-    );
-
-    symbols.push(
-      b&3
-    );
-
-  }
-
-
-  return symbols;
-
-}
-
-
-/* ==========================================
-   ハッシュ
-========================================== */
-
-function makeHash(text){
-
-  var h=2166136261;
-
-
-  for(
-    var i=0;
-    i<text.length;
-    i++
-  ){
-
-    h^=
-      text.charCodeAt(i);
-
-
-    h+=
-      (h<<1)+
-      (h<<4)+
-      (h<<7)+
-      (h<<8)+
-      (h<<24);
-
-  }
-
-
-  return Math.abs(
-    h>>>0
+  return Array.from(
+    encoder.encode(text)
   );
 
 }
 
 
-/* ==========================================
+/* -------------------------------------
+   ハッシュ
+   同じ文字なら同じ模様
+------------------------------------- */
+
+function hashText(text){
+
+  let h = 2166136261;
+
+  for(let i=0;i<text.length;i++){
+
+    h ^= text.charCodeAt(i);
+
+    h +=
+      (h << 1) +
+      (h << 4) +
+      (h << 7) +
+      (h << 8) +
+      (h << 24);
+
+  }
+
+  return Math.abs(h >>> 0);
+}
+
+
+/* -------------------------------------
+   4段階データ化
+------------------------------------- */
+
+function makeSymbols(bytes){
+
+  const symbols=[];
+
+  for(const b of bytes){
+
+    symbols.push((b >> 6) & 3);
+    symbols.push((b >> 4) & 3);
+    symbols.push((b >> 2) & 3);
+    symbols.push(b & 3);
+
+  }
+
+  return symbols;
+}
+
+
+/* -------------------------------------
+   配置
+   正方形グリッドではなく、
+   ゆるいリング状
+------------------------------------- */
+
+function createPositions(){
+
+  const positions=[];
+
+  const rings=[
+    {r:43,n:18},
+    {r:37,n:20},
+    {r:31,n:22},
+    {r:25,n:20},
+    {r:19,n:16},
+    {r:13,n:10}
+  ];
+
+  for(const ring of rings){
+
+    for(let i=0;i<ring.n;i++){
+
+      const angle =
+        (Math.PI*2*i/ring.n)
+        +
+        ((ring.r % 7)*0.025);
+
+      positions.push({
+
+        x:50 + Math.cos(angle)*ring.r,
+        y:50 + Math.sin(angle)*ring.r
+
+      });
+
+    }
+
+  }
+
+  return positions;
+}
+
+
+const POSITIONS = createPositions();
+
+
+/* -------------------------------------
+   図形を作る
+------------------------------------- */
+
+function addShape(container, index, value, seed){
+
+  const p=POSITIONS[index];
+
+  const el=document.createElement("div");
+
+  let shapeIndex =
+    (seed +
+     index*17 +
+     value*7)
+    % SHAPES.length;
+
+  let colorIndex =
+    (seed*3 +
+     index*11 +
+     value*13)
+    % COLORS.length;
+
+  let rotation =
+    ((seed +
+      index*23 +
+      value*31)
+      % 360);
+
+  el.className =
+    "shape " +
+    SHAPES[shapeIndex];
+
+  el.style.left =
+    p.x + "%";
+
+  el.style.top =
+    p.y + "%";
+
+  el.style.background =
+    COLORS[colorIndex];
+
+  el.style.color =
+    COLORS[colorIndex];
+
+  el.style.transform =
+    "translate(-50%,-50%) rotate(" +
+    rotation +
+    "deg)";
+
+  /*
+    図形ごとに微妙に大きさを変える
+    正方形感をなくす
+  */
+
+  const scale =
+    0.82 +
+    (
+      (seed +
+       index*5 +
+       value*3)
+      % 35
+    ) / 100;
+
+  el.style.scale=scale;
+
+  container.appendChild(el);
+
+}
+
+
+/* -------------------------------------
    ポテコード生成
-========================================== */
+------------------------------------- */
 
 function makeCode(){
 
-  var input=
-    document.getElementById(
-      "inputText"
-    );
+  const text=
+    document.getElementById("input").value;
+
+  const code=
+    document.getElementById("poteCode");
+
+  const result=
+    document.getElementById("result");
+
+  const status=
+    document.getElementById("status");
 
 
-  var text=input.value;
+  /*
+    前回の図形を消す
+  */
+
+  code
+    .querySelectorAll(".shape")
+    .forEach(el=>el.remove());
 
 
   if(!text){
 
-    alert(
-      "文字やURLを入力してね！"
-    );
+    result.textContent=
+      "まだポテコードがありません";
+
+    status.textContent=
+      "文字を入力してね";
 
     return;
 
   }
 
 
-  var code=
-    document.getElementById(
-      "poteCode"
-    );
-
-
-  /*
-     前回の図形を削除
-  */
-
-  var oldShapes=
-    code.querySelectorAll(
-      ".pote-shape"
-    );
-
-
-  for(
-    var i=0;
-    i<oldShapes.length;
-    i++
-  ){
-
-    oldShapes[i].remove();
-
-  }
-
-
-  /*
-     UTF-8データ
-  */
-
-  var bytes=
+  const bytes=
     getBytes(text);
 
+  const symbols=
+    makeSymbols(bytes);
 
-  var symbols=
-    toSymbols(bytes);
-
-
-  /*
-     入力から固定された
-     見た目のパターンを作る
-  */
-
-  var seed=
-    makeHash(text);
+  const seed=
+    hashText(text);
 
 
   /*
-     =====================================
-     全スロットを必ず埋める
-     =====================================
-
-     データが少なくても
-     空白にはしない。
-
+    全スロットを必ず埋める
+    短い文字でもスカスカにしない
   */
 
   for(
-    var i=0;
-    i<SLOTS.length;
+    let i=0;
+    i<POSITIONS.length;
     i++
   ){
 
-    var value;
+    let value;
 
+    if(i < symbols.length){
 
-    /*
-       本物のデータ
-    */
+      value=symbols[i];
 
-    if(
-      i<symbols.length
-    ){
+    }else{
 
-      value=
-        symbols[i];
-
-    }
-
-
-    /*
-       残りはダミーデータ
-
-       見た目を埋めるためのもの。
-    */
-
-    else{
+      /*
+        ダミー部分も入力文字から
+        決定されるので毎回同じ
+      */
 
       value=
         (
-          seed+
-          i*17+
-          i*i
-        )%4;
+          seed +
+          i*19 +
+          i*i*3
+        ) % 4;
 
     }
 
-
-    var slot=
-      SLOTS[i];
-
-
-    /*
-       図形
-
-       データと入力文字によって
-       微妙に変化。
-    */
-
-    var shapeIndex=
-      (
-        seed+
-        i*7+
-        value*13
-      )%SHAPES.length;
-
-
-    var shape=
-      SHAPES[shapeIndex];
-
-
-    /*
-       色
-    */
-
-    var colorIndex=
-      (
-        seed+
-        i*11+
-        value*5
-      )%COLORS.length;
-
-
-    var color=
-      COLORS[colorIndex];
-
-
-    /*
-       要素作成
-    */
-
-    var el=
-      document.createElement(
-        "div"
-      );
-
-
-    el.className=
-      "pote-shape shape-"+
-      shape;
-
-
-    /*
-       大きさ
-
-       全体の密度は一定。
-    */
-
-    var size=
-      14+
-      (
-        (
-          seed+
-          i*3+
-          value
-        )%8
-      );
-
-
-    el.style.width=
-      size+"px";
-
-    el.style.height=
-      size+"px";
-
-
-    /*
-       色
-    */
-
-    el.style.background=
-      color;
-
-    el.style.color=
-      color;
-
-
-    /*
-       回転
-    */
-
-    if(
-      shape!=="triangle" &&
-      shape!=="diamond"
-    ){
-
-      var rotation=
-        (
-          seed+
-          i*19
-        )%360;
-
-
-      el.style.transform=
-        "translate(-50%,-50%) rotate("+
-        rotation+
-        "deg)";
-
-    }
-
-
-    /*
-       固定位置
-    */
-
-    el.style.left=
-      slot.x+"%";
-
-    el.style.top=
-      slot.y+"%";
-
-
-    code.appendChild(el);
+    addShape(
+      code,
+      i,
+      value,
+      seed
+    );
 
   }
 
 
   /*
-     入力表示
+    表示
   */
 
-  document
-    .getElementById(
-      "outputText"
-    )
-    .textContent=
-      text;
+  result.textContent=
+    text;
 
-
-  /*
-     ステータス
-  */
-
-  document
-    .getElementById(
-      "status"
-    )
-    .textContent=
-      "全"+SLOTS.length+
-      "スロット使用";
-
+  status.textContent=
+    "このポテコードは入力内容から生成されています";
 
 }
 
 
-/* ==========================================
+/* -------------------------------------
    ボタン
-========================================== */
+------------------------------------- */
 
 document
-  .getElementById(
-    "makeButton"
-  )
+  .getElementById("make")
   .addEventListener(
     "click",
     makeCode
@@ -1093,10 +684,27 @@ document
 
 
 /*
-   最初はコードを生成しない。
-
-   → 開いた瞬間にエラーになりにくい。
+  Enterではなく
+  Ctrl / Command + Enter
 */
+
+document
+  .getElementById("input")
+  .addEventListener(
+    "keydown",
+    e=>{
+
+      if(
+        (e.ctrlKey || e.metaKey) &&
+        e.key==="Enter"
+      ){
+
+        makeCode();
+
+      }
+
+    }
+  );
 
 </script>
 
