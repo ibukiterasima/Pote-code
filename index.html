@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 
 <title>POTE CODE</title>
 
@@ -26,7 +26,7 @@ body{
 .app{
   width:min(720px,100%);
   margin:auto;
-  padding:25px 18px 50px;
+  padding:24px 16px 50px;
 }
 
 h1{
@@ -52,31 +52,52 @@ h1{
     0 10px 35px rgba(80,60,30,.08);
 }
 
-input{
+textarea{
   width:100%;
-  padding:15px;
-  border-radius:15px;
+  height:105px;
+  resize:none;
+
+  padding:14px;
+
+  border-radius:16px;
   border:2px solid #ded4c2;
+
   outline:none;
+
   background:#fffefa;
+
   font-size:16px;
+  line-height:1.5;
+
   color:#554b40;
 }
 
-input:focus{
+textarea:focus{
   border-color:#759c78;
+}
+
+.counter{
+  text-align:right;
+  font-size:12px;
+  opacity:.5;
+  margin-top:5px;
 }
 
 button{
   width:100%;
   margin-top:11px;
+
   padding:15px;
+
   border:0;
   border-radius:16px;
+
   background:#759c78;
   color:white;
+
   font-size:15px;
   font-weight:bold;
+
   cursor:pointer;
 }
 
@@ -87,25 +108,31 @@ button.secondary{
 
 #output{
   margin-top:20px;
+
   width:100%;
+
   display:flex;
   justify-content:center;
 }
 
 #output svg{
   width:100%;
-  max-width:650px;
+  max-width:680px;
   height:auto;
 }
 
 .info{
   text-align:center;
   margin-top:12px;
+
   font-size:11px;
+  line-height:1.6;
+
   opacity:.5;
 }
 </style>
 </head>
+
 
 <body>
 
@@ -119,11 +146,15 @@ COLORFUL GEOMETRIC CODE
 
 <div class="panel">
 
-<input
+<textarea
   id="text"
-  type="text"
-  placeholder="文字を入力"
-/>
+  maxlength="50"
+  placeholder="50文字まで入力できます
+例：ポテちゃんのお店 001"></textarea>
+
+<div class="counter">
+<span id="count">0</span> / 50
+</div>
 
 <button onclick="generate()">
 POTE CODEを生成
@@ -138,7 +169,9 @@ SVGを保存
 <div id="output"></div>
 
 <div class="info">
-同じ文字からは同じPOTE CODEになります
+図形がある＝1<br>
+図形がない＝0<br>
+英数・日本語 最大50文字対応
 </div>
 
 </div>
@@ -150,7 +183,7 @@ SVGを保存
 
 /* =====================================================
    POTE CODE
-   BEAUTIFUL EDITION
+   PRESENCE / ABSENCE EDITION
    ===================================================== */
 
 
@@ -159,14 +192,14 @@ SVGを保存
 ----------------------------------------------------- */
 
 const COLORS = [
-  "#7fb37d", // green
-  "#a9c66d", // yellow green
-  "#e5ad32", // yellow
-  "#d48d45", // orange
-  "#5f91a5", // blue
-  "#7da796", // blue green
-  "#b47b42", // brown
-  "#6c956f"  // dark green
+  "#78a979",
+  "#9abd72",
+  "#e4a52f",
+  "#d68d43",
+  "#5f90a4",
+  "#78a394",
+  "#b77c42",
+  "#6d936d"
 ];
 
 
@@ -178,31 +211,310 @@ let currentSVG = "";
 
 
 /* -----------------------------------------------------
-   ハッシュ
-   同じ文字 → 同じ乱数
+   文字数表示
 ----------------------------------------------------- */
 
-function hashString(text){
+const textBox =
+  document.getElementById("text");
 
-  let h = 2166136261;
+const count =
+  document.getElementById("count");
 
-  for(let i=0;i<text.length;i++){
+textBox.addEventListener(
+  "input",
+  ()=>{
+    count.textContent =
+      [...textBox.value].length;
+  }
+);
 
-    h ^= text.charCodeAt(i);
 
-    h = Math.imul(
-      h,
-      16777619
-    );
+/* =====================================================
+   16bitデータ化
+   ===================================================== */
+
+/*
+   日本語を含めるため、
+   JavaScriptのUTF-16コード単位を使う。
+
+   50文字
+   × 16bit
+   = 800bit
+
+   英数も日本語も同じ規格で扱える。
+*/
+
+function textTo16Bits(text){
+
+  const chars =
+    [...text];
+
+  if(chars.length > 50){
+    return null;
   }
 
-  return h >>> 0;
+  const bits = [];
+
+
+  /*
+    先頭6bit
+    → 文字数
+  */
+
+  for(let i=5;i>=0;i--){
+
+    bits.push(
+      (chars.length >> i) & 1
+    );
+
+  }
+
+
+  /*
+    各文字16bit
+  */
+
+  for(const char of chars){
+
+    const code =
+      char.charCodeAt(0);
+
+    for(let i=15;i>=0;i--){
+
+      bits.push(
+        (code >> i) & 1
+      );
+
+    }
+
+  }
+
+
+  /*
+    CRC16
+  */
+
+  const crc =
+    crc16(chars);
+
+
+  for(let i=15;i>=0;i--){
+
+    bits.push(
+      (crc >> i) & 1
+    );
+
+  }
+
+
+  return bits;
 }
 
 
-/* -----------------------------------------------------
+/* =====================================================
+   CRC16
+===================================================== */
+
+function crc16(chars){
+
+  let crc = 0xFFFF;
+
+  for(const char of chars){
+
+    const code =
+      char.charCodeAt(0);
+
+    crc ^= code;
+
+    for(let i=0;i<16;i++){
+
+      if(crc & 1){
+
+        crc =
+          (crc >> 1) ^
+          0xA001;
+
+      }else{
+
+        crc >>= 1;
+
+      }
+
+    }
+
+  }
+
+  return crc & 0xFFFF;
+}
+
+
+/* =====================================================
+   固定スロット
+===================================================== */
+
+/*
+   ここがPOTE CODEの「見えないマス」。
+
+   実際には四角いマスではなく、
+   円形に並んだ「図形の候補位置」。
+
+   図形があれば1
+   なければ0
+*/
+
+
+function createSlots(){
+
+  const slots = [];
+
+
+  /*
+   * 内側
+   */
+
+  const innerCount = 72;
+
+  for(let i=0;i<innerCount;i++){
+
+    const angle =
+      -Math.PI/2 +
+      i *
+      Math.PI*2 /
+      innerCount;
+
+    const radius =
+      205 +
+      Math.sin(i*2.3)*9;
+
+    slots.push({
+
+      x:
+        500 +
+        Math.cos(angle)*radius,
+
+      y:
+        500 +
+        Math.sin(angle)*radius,
+
+      ring:0
+
+    });
+
+  }
+
+
+  /*
+   * 中間
+   */
+
+  const middleCount = 180;
+
+  for(let i=0;i<middleCount;i++){
+
+    const angle =
+      -Math.PI/2 +
+      i *
+      Math.PI*2 /
+      middleCount;
+
+    const radius =
+      300 +
+      Math.sin(i*1.7)*13;
+
+    slots.push({
+
+      x:
+        500 +
+        Math.cos(angle)*radius,
+
+      y:
+        500 +
+        Math.sin(angle)*radius,
+
+      ring:1
+
+    });
+
+  }
+
+
+  /*
+   * 外側
+   */
+
+  const outerCount = 300;
+
+  for(let i=0;i<outerCount;i++){
+
+    const angle =
+      -Math.PI/2 +
+      i *
+      Math.PI*2 /
+      outerCount;
+
+    const radius =
+      395 +
+      Math.sin(i*1.37)*15;
+
+    slots.push({
+
+      x:
+        500 +
+        Math.cos(angle)*radius,
+
+      y:
+        500 +
+        Math.sin(angle)*radius,
+
+      ring:2
+
+    });
+
+  }
+
+
+  /*
+   * さらに外側の散らし
+   */
+
+  const outer2Count = 300;
+
+  for(let i=0;i<outer2Count;i++){
+
+    const angle =
+      -Math.PI/2 +
+      i *
+      Math.PI*2 /
+      outer2Count;
+
+    const radius =
+      435 +
+      Math.sin(i*2.11)*10;
+
+    slots.push({
+
+      x:
+        500 +
+        Math.cos(angle)*radius,
+
+      y:
+        500 +
+        Math.sin(angle)*radius,
+
+      ring:3
+
+    });
+
+  }
+
+
+  return slots;
+}
+
+
+/* =====================================================
    決定論的乱数
------------------------------------------------------ */
+===================================================== */
 
 function randomGenerator(seed){
 
@@ -212,10 +524,11 @@ function randomGenerator(seed){
 
     let t = seed;
 
-    t = Math.imul(
-      t ^ (t >>> 15),
-      t | 1
-    );
+    t =
+      Math.imul(
+        t ^ (t >>> 15),
+        t | 1
+      );
 
     t ^= t +
       Math.imul(
@@ -224,372 +537,42 @@ function randomGenerator(seed){
       );
 
     return (
-      (t ^ (t >>> 14)) >>> 0
+      (t ^ (t >>> 14))
+      >>> 0
     ) / 4294967296;
+
   };
-}
 
-
-/* -----------------------------------------------------
-   UTF-8
------------------------------------------------------ */
-
-function textToBytes(text){
-
-  return Array.from(
-    new TextEncoder().encode(text)
-  );
-}
-
-
-/* -----------------------------------------------------
-   CRC
------------------------------------------------------ */
-
-function crc8(data){
-
-  let crc = 0;
-
-  for(const byte of data){
-
-    crc ^= byte;
-
-    for(let i=0;i<8;i++){
-
-      if(crc & 0x80){
-
-        crc =
-          ((crc << 1) ^ 0x07)
-          & 255;
-
-      }else{
-
-        crc =
-          (crc << 1) & 255;
-
-      }
-    }
-  }
-
-  return crc;
-}
-
-
-/* -----------------------------------------------------
-   データ → 2bit図形
------------------------------------------------------ */
-
-function makeSymbols(text){
-
-  const bytes =
-    textToBytes(text);
-
-  /*
-    最大40byte
-  */
-
-  if(bytes.length > 40){
-
-    alert(
-      "文字が長すぎます。\n40バイト以内にしてください。"
-    );
-
-    return null;
-  }
-
-
-  /*
-    POTE
-    version
-    length
-    data
-    CRC
-  */
-
-  const data = [
-
-    80,
-    79,
-    84,
-    69,
-
-    1,
-
-    bytes.length,
-
-    ...bytes
-
-  ];
-
-
-  data.push(
-    crc8(data)
-  );
-
-
-  /*
-    1byte = 4図形
-
-    00 ○
-    01 △
-    10 □
-    11 ◇
-  */
-
-  const symbols = [];
-
-  for(const byte of data){
-
-    symbols.push(
-      (byte >> 6) & 3
-    );
-
-    symbols.push(
-      (byte >> 4) & 3
-    );
-
-    symbols.push(
-      (byte >> 2) & 3
-    );
-
-    symbols.push(
-      byte & 3
-    );
-  }
-
-  return symbols;
 }
 
 
 /* =====================================================
-   配置
-   ===================================================== */
+   ハッシュ
+===================================================== */
 
-/*
-   ここが今回の重要部分。
+function hashString(text){
 
-   綺麗な円周ではなく、
+  let h = 2166136261;
 
-   内側
-   ↓
-   中間
-   ↓
-   外側
+  for(let i=0;i<text.length;i++){
 
-   の3層にして、
-   角度を少しずつズラす。
+    h ^= text.charCodeAt(i);
 
-   ただし位置そのものは
-   データとは無関係。
+    h =
+      Math.imul(
+        h,
+        16777619
+      );
 
-   → Readerが読める。
-*/
+  }
 
-
-function createSlots(){
-
-  const slots = [];
-
-
-  /* -----------------------------
-     内側
-  ----------------------------- */
-
-  const inner = [
-    -90,
-    -45,
-    0,
-    45,
-    90,
-    135,
-    180,
-    225
-  ];
-
-
-  inner.forEach(
-    (deg,i)=>{
-
-      const rad =
-        deg * Math.PI / 180;
-
-      const radius = 175;
-
-      slots.push({
-
-        x:
-          500 +
-          Math.cos(rad) *
-          radius,
-
-        y:
-          500 +
-          Math.sin(rad) *
-          radius,
-
-        layer:"inner"
-
-      });
-
-    }
-  );
-
-
-  /* -----------------------------
-     中間
-  ----------------------------- */
-
-  const middle = [
-    -112,
-    -82,
-    -52,
-    -22,
-    10,
-    41,
-    72,
-    104,
-    135,
-    166,
-    197,
-    228,
-    259
-  ];
-
-
-  middle.forEach(
-    (deg,i)=>{
-
-      const rad =
-        deg * Math.PI / 180;
-
-      const radius =
-        285 + ((i % 3) * 7);
-
-      slots.push({
-
-        x:
-          500 +
-          Math.cos(rad) *
-          radius,
-
-        y:
-          500 +
-          Math.sin(rad) *
-          radius,
-
-        layer:"middle"
-
-      });
-
-    }
-  );
-
-
-  /* -----------------------------
-     外側
-  ----------------------------- */
-
-  const outer = [
-    -160,
-    -137,
-    -112,
-    -88,
-    -64,
-    -40,
-    -16,
-    9,
-    34,
-    59,
-    84,
-    109,
-    134,
-    159,
-    184,
-    209,
-    234,
-    259
-  ];
-
-
-  outer.forEach(
-    (deg,i)=>{
-
-      const rad =
-        deg * Math.PI / 180;
-
-      const radius =
-        405 + ((i % 4) * 5);
-
-      slots.push({
-
-        x:
-          500 +
-          Math.cos(rad) *
-          radius,
-
-        y:
-          500 +
-          Math.sin(rad) *
-          radius,
-
-        layer:"outer"
-
-      });
-
-    }
-  );
-
-
-  /*
-    さらに追加の
-    「散らし図形」
-  */
-
-  const extras = [
-
-    [130,180],
-    [870,185],
-
-    [90,370],
-    [910,370],
-
-    [115,635],
-    [885,640],
-
-    [175,825],
-    [825,825],
-
-    [355,115],
-    [645,115],
-
-    [355,885],
-    [645,885]
-
-  ];
-
-
-  extras.forEach(
-    p=>{
-
-      slots.push({
-
-        x:p[0],
-        y:p[1],
-        layer:"extra"
-
-      });
-
-    }
-  );
-
-
-  return slots;
+  return h >>> 0;
 }
 
 
 /* =====================================================
    図形
-   ===================================================== */
+===================================================== */
 
 function drawShape(
   type,
@@ -601,8 +584,8 @@ function drawShape(
 ){
 
   /*
-    ○
-  */
+   * ○
+   */
 
   if(type === 0){
 
@@ -614,12 +597,13 @@ function drawShape(
         fill="${color}"
       />
     `;
+
   }
 
 
   /*
-    △
-  */
+   * △
+   */
 
   if(type === 1){
 
@@ -635,18 +619,21 @@ function drawShape(
         "
         fill="${color}"
         transform="
-          rotate(${rotation}
-          ${x}
-          ${y})
+          rotate(
+            ${rotation}
+            ${x}
+            ${y}
+          )
         "
       />
     `;
+
   }
 
 
   /*
-    □
-  */
+   * □
+   */
 
   if(type === 2){
 
@@ -659,18 +646,21 @@ function drawShape(
         rx="${size*0.12}"
         fill="${color}"
         transform="
-          rotate(${rotation}
-          ${x}
-          ${y})
+          rotate(
+            ${rotation}
+            ${x}
+            ${y}
+          )
         "
       />
     `;
+
   }
 
 
   /*
-    ◇
-  */
+   * ◇
+   */
 
   return `
     <polygon
@@ -682,12 +672,15 @@ function drawShape(
       "
       fill="${color}"
       transform="
-        rotate(${rotation}
-        ${x}
-        ${y})
+        rotate(
+          ${rotation}
+          ${x}
+          ${y}
+        )
       "
     />
   `;
+
 }
 
 
@@ -701,61 +694,17 @@ function drawPote(){
 
     <g>
 
-      <!-- potato -->
       <path
         d="
-          M500 385
-
-          C445 375
-          405 415
-          395 475
-
-          C382 545
-          405 610
-          475 625
-
-          C545 642
-          603 600
-          608 530
-
-          C615 455
-          575 395
-          500 385
-
+          M500 380
+          C442 370 400 415 392 480
+          C382 550 408 613 478 628
+          C550 643 606 600 612 530
+          C618 454 575 392 500 380
           Z
         "
         fill="#b8793d"
       />
-
-
-      <!-- small potato texture -->
-
-      <circle
-        cx="425"
-        cy="455"
-        r="5"
-        fill="#9d642f"
-        opacity=".45"
-      />
-
-      <circle
-        cx="570"
-        cy="565"
-        r="5"
-        fill="#9d642f"
-        opacity=".45"
-      />
-
-      <circle
-        cx="455"
-        cy="590"
-        r="4"
-        fill="#9d642f"
-        opacity=".4"
-      />
-
-
-      <!-- eyes -->
 
       <circle
         cx="466"
@@ -771,19 +720,31 @@ function drawPote(){
         fill="#574b3c"
       />
 
-
-      <!-- mouth -->
-
       <path
         d="
           M475 535
-          Q500 552
-          525 535
+          Q500 552 525 535
         "
         fill="none"
         stroke="#574b3c"
         stroke-width="7"
         stroke-linecap="round"
+      />
+
+      <circle
+        cx="430"
+        cy="460"
+        r="5"
+        fill="#9c632f"
+        opacity=".4"
+      />
+
+      <circle
+        cx="570"
+        cy="560"
+        r="5"
+        fill="#9c632f"
+        opacity=".4"
       />
 
     </g>
@@ -793,22 +754,22 @@ function drawPote(){
 
 
 /* =====================================================
-   ポテちゃん周囲のリング
+   中央リング
 ===================================================== */
 
-function drawInnerRing(){
+function drawCenterRing(){
 
-  const pieces = [];
+  let out = "";
 
   const colors = [
-    "#e3a52d",
-    "#d98b42",
-    "#e4a932",
-    "#d38b43",
-    "#e0a02d",
-    "#d88f42",
-    "#e5aa32",
-    "#d68d42"
+    "#e4a52f",
+    "#d58c42",
+    "#e3a02d",
+    "#d78e43",
+    "#e2a32f",
+    "#d88e42",
+    "#e3a42e",
+    "#d68c42"
   ];
 
 
@@ -816,7 +777,7 @@ function drawInnerRing(){
 
     const angle =
       -Math.PI/2 +
-      i * Math.PI/4;
+      i*Math.PI/4;
 
     const x =
       500 +
@@ -826,8 +787,7 @@ function drawInnerRing(){
       500 +
       Math.sin(angle)*155;
 
-
-    pieces.push(
+    out +=
       drawShape(
         1,
         x,
@@ -835,23 +795,17 @@ function drawInnerRing(){
         42,
         colors[i],
         i*45+90
-      )
-    );
+      );
 
   }
 
-  return pieces.join("");
+  return out;
 }
 
 
 /* =====================================================
    Finder
 ===================================================== */
-
-/*
-   右下にあるけど
-   QRっぽくしない。
-*/
 
 function drawFinder(){
 
@@ -889,9 +843,7 @@ function drawFinder(){
 function generate(){
 
   const text =
-    document.getElementById(
-      "text"
-    ).value;
+    textBox.value;
 
 
   if(!text){
@@ -904,14 +856,30 @@ function generate(){
   }
 
 
-  const symbols =
-    makeSymbols(text);
+  const chars =
+    [...text];
 
-  if(!symbols) return;
+
+  if(chars.length > 50){
+
+    alert(
+      "50文字までです。"
+    );
+
+    return;
+  }
 
 
   /*
-    配置は固定
+    データ
+  */
+
+  const bits =
+    textTo16Bits(text);
+
+
+  /*
+    固定候補位置
   */
 
   const slots =
@@ -919,11 +887,12 @@ function generate(){
 
 
   /*
-    色・サイズ・回転だけ
-    入力文字から決定。
+    乱数
 
-    同じ文字なら
-    同じ見た目。
+    これは「ある/ない」を
+    データから決めるものではない。
+
+    装飾部分だけに使う。
   */
 
   const random =
@@ -935,73 +904,138 @@ function generate(){
   let shapes = "";
 
 
+  /*
+    ---------------------------------------------
+    データ部分
+    ---------------------------------------------
+
+    1 = 図形あり
+    0 = 図形なし
+
+    これがPOTE CODEの本体。
+  */
+
+
   for(
     let i=0;
-    i<slots.length;
+    i<bits.length;
     i++
   ){
+
+    if(bits[i] !== 1){
+
+      continue;
+    }
+
 
     const slot =
       slots[i];
 
 
-    /*
-      データ部分
-    */
+    if(!slot){
 
-    let type;
-
-    if(i < symbols.length){
-
-      type =
-        symbols[i];
-
-    }else{
-
-      /*
-        残りは装飾
-      */
-
-      type =
-        Math.floor(
-          random()*4
-        );
-
+      break;
     }
 
 
     let size;
 
 
-    if(slot.layer === "inner"){
+    if(slot.ring === 0){
 
       size =
-        38 +
-        random()*10;
+        30 +
+        random()*12;
 
-    }else if(
-      slot.layer === "middle"
-    ){
+    }else if(slot.ring === 1){
 
       size =
-        45 +
-        random()*15;
-
-    }else if(
-      slot.layer === "outer"
-    ){
-
-      size =
-        50 +
-        random()*22;
+        30 +
+        random()*18;
 
     }else{
 
       size =
-        35 +
-        random()*30;
+        27 +
+        random()*22;
 
     }
+
+
+    const color =
+      COLORS[
+        Math.floor(
+          random() *
+          COLORS.length
+        )
+      ];
+
+
+    const rotation =
+      random()*360;
+
+
+    const type =
+      Math.floor(
+        random()*4
+      );
+
+
+    shapes +=
+      drawShape(
+        type,
+        slot.x,
+        slot.y,
+        size,
+        color,
+        rotation
+      );
+
+  }
+
+
+  /*
+    ---------------------------------------------
+    装飾図形
+    ---------------------------------------------
+
+    データとは無関係。
+
+    ただし、
+    データの図形と同じ場所には
+    絶対に置かない。
+  */
+
+  const used =
+    bits.length;
+
+
+  for(
+    let i=used;
+    i<slots.length;
+    i++
+  ){
+
+    /*
+      全部埋めない。
+
+      ところどころだけ
+      装飾を置く。
+    */
+
+    if(random() > 0.34){
+
+      continue;
+    }
+
+
+    const slot =
+      slots[i];
+
+
+    let size =
+      22 +
+      random()*25;
 
 
     const color =
@@ -1010,6 +1044,12 @@ function generate(){
           random()*COLORS.length
         )
       ];
+
+
+    const type =
+      Math.floor(
+        random()*4
+      );
 
 
     const rotation =
@@ -1029,9 +1069,9 @@ function generate(){
   }
 
 
-  /* -------------------------------------------------
-     SVG
-  ------------------------------------------------- */
+  /*
+    SVG
+  */
 
   currentSVG = `
 
@@ -1039,39 +1079,40 @@ function generate(){
   xmlns="http://www.w3.org/2000/svg"
   viewBox="0 0 1000 1000">
 
-  <!-- background -->
-
   <rect
     width="1000"
     height="1000"
-    rx="50"
+    rx="55"
     fill="#fffaf0"
   />
 
 
-  <!-- very subtle outer boundary -->
-
   <circle
     cx="500"
     cy="500"
-    r="465"
+    r="466"
     fill="none"
     stroke="#eee4d4"
     stroke-width="3"
   />
 
 
-  <!-- colorful outer geometry -->
+  <!--
+    POTE CODE DATA
+
+    図形あり = 1
+    図形なし = 0
+  -->
 
   ${shapes}
 
 
-  <!-- center decorative ring -->
+  <!-- center decoration -->
 
-  ${drawInnerRing()}
+  ${drawCenterRing()}
 
 
-  <!-- Pote -->
+  <!-- POTE -->
 
   ${drawPote()}
 
@@ -1093,7 +1134,7 @@ function generate(){
 
 
 /* =====================================================
-   SAVE SVG
+   SVG保存
 ===================================================== */
 
 function saveSVG(){
@@ -1123,7 +1164,6 @@ function saveSVG(){
 
   const a =
     document.createElement("a");
-
 
   a.href = url;
 
