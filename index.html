@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
-<title>POTE CODE Generator</title>
+<title>POTE CODE</title>
 
 <style>
 *{
@@ -13,8 +13,8 @@
 
 body{
   margin:0;
-  background:#faf7ee;
-  color:#51483d;
+  background:#faf7ef;
+  color:#554b40;
   font-family:
     -apple-system,
     BlinkMacSystemFont,
@@ -30,82 +30,81 @@ body{
 }
 
 h1{
+  margin:8px 0 4px;
   text-align:center;
-  letter-spacing:4px;
-  margin:10px 0 4px;
+  letter-spacing:5px;
   font-size:32px;
 }
 
 .sub{
   text-align:center;
-  opacity:.55;
-  font-size:13px;
+  font-size:12px;
+  opacity:.5;
   margin-bottom:25px;
 }
 
 .panel{
   background:#fffdf8;
-  border:2px solid #e2d8c6;
+  border:1px solid #e0d7c8;
   border-radius:28px;
   padding:18px;
-  box-shadow:0 10px 35px rgba(70,50,25,.08);
+  box-shadow:0 12px 40px rgba(80,60,30,.08);
 }
 
-input[type="text"]{
+input{
   width:100%;
-  border:2px solid #ded4c2;
-  border-radius:15px;
   padding:15px;
-  font-size:16px;
-  outline:none;
+  border:2px solid #ded5c5;
+  border-radius:16px;
   background:#fffefa;
+  font-size:16px;
   color:#51483d;
+  outline:none;
 }
 
-input[type="text"]:focus{
+input:focus{
   border-color:#739b78;
 }
 
 button{
   width:100%;
   margin-top:12px;
+  padding:15px;
   border:0;
   border-radius:16px;
-  padding:15px;
+  background:#739b78;
+  color:white;
   font-size:15px;
   font-weight:bold;
   cursor:pointer;
-  background:#739b78;
-  color:white;
 }
 
 button.secondary{
-  background:#e7dfd0;
+  background:#e7dfd1;
   color:#51483d;
 }
 
-#codeArea{
+#output{
   margin-top:20px;
-  width:100%;
   display:flex;
   justify-content:center;
 }
 
 svg{
   width:100%;
-  max-width:620px;
+  max-width:650px;
   height:auto;
-  border-radius:25px;
 }
 
 .info{
   text-align:center;
-  margin-top:14px;
   font-size:12px;
-  opacity:.55;
+  opacity:.5;
+  margin-top:12px;
 }
 </style>
 </head>
+
 
 <body>
 
@@ -114,15 +113,15 @@ svg{
 <h1>POTE CODE</h1>
 
 <div class="sub">
-GENERATOR
+BEAUTIFUL CODE
 </div>
 
 <div class="panel">
 
 <input
-  id="text"
+  id="input"
   type="text"
-  placeholder="読み取りたい文字を入力"
+  placeholder="文字を入力"
 />
 
 <button onclick="generate()">
@@ -135,10 +134,10 @@ POTE CODEを生成
 SVGを保存
 </button>
 
-<div id="codeArea"></div>
+<div id="output"></div>
 
 <div class="info">
-このPOTE CODEは読み取り対応規格です。
+同じ文字からは同じPOTE CODEが生成されます
 </div>
 
 </div>
@@ -148,93 +147,136 @@ SVGを保存
 
 <script>
 
-/* =========================================
-   POTE CODE v1
-   ========================================= */
+/* =================================================
+   POTE CODE BEAUTIFUL v2
+   ================================================= */
 
-const SIZE = 1000;
+
+/* ---------- 基本 ---------- */
+
+const W = 1000;
 
 const COLORS = [
-  "#79a978",
-  "#91b87b",
-  "#e4a52f",
-  "#d38d45",
-  "#5c8fa2",
-  "#76a38a",
-  "#b78a50",
-  "#6d9072"
+  "#76a879",
+  "#8fb77a",
+  "#e1a536",
+  "#d28b46",
+  "#5d8da1",
+  "#7aa493",
+  "#b78b55",
+  "#78966d"
 ];
 
 let currentSVG = "";
 
 
-/* =========================================
-   UTF-8
-   ========================================= */
+/* ---------- 文字列 → UTF8 ---------- */
 
-function textToBytes(text){
+function bytes(text){
 
   return Array.from(
     new TextEncoder().encode(text)
   );
+
 }
 
 
-/* =========================================
-   CRC
-   ========================================= */
+/* ---------- hash ---------- */
 
-function crc8(bytes){
+function hash(text){
+
+  let h = 2166136261;
+
+  for(let i=0;i<text.length;i++){
+
+    h ^= text.charCodeAt(i);
+
+    h =
+      Math.imul(
+        h,
+        16777619
+      );
+
+  }
+
+  return h >>> 0;
+}
+
+
+/* ---------- deterministic random ---------- */
+
+function rng(seed){
+
+  return function(){
+
+    seed += 0x6D2B79F5;
+
+    let t = seed;
+
+    t =
+      Math.imul(
+        t ^ (t >>> 15),
+        t | 1
+      );
+
+    t ^= t +
+      Math.imul(
+        t ^ (t >>> 7),
+        t | 61
+      );
+
+    return (
+      (t ^ (t >>> 14))
+      >>> 0
+    ) / 4294967296;
+
+  };
+
+}
+
+
+/* =================================================
+   DATA
+   ================================================= */
+
+function crc8(data){
 
   let crc = 0;
 
-  for(const byte of bytes){
+  for(const b of data){
 
-    crc ^= byte;
+    crc ^= b;
 
     for(let i=0;i<8;i++){
 
-      if(crc & 0x80){
+      if(crc & 128){
 
         crc =
-          ((crc << 1) ^ 0x07) &
-          255;
+          ((crc << 1) ^ 7) & 255;
 
       }else{
 
         crc =
-          (crc << 1) &
-          255;
+          (crc << 1) & 255;
 
       }
+
     }
+
   }
 
   return crc;
 }
 
 
-/* =========================================
-   POTE CODE DATA
-   ========================================= */
+function makeSymbols(text){
 
-function makeData(text){
+  const payload = bytes(text);
 
-  const payload =
-    textToBytes(text);
-
-  /*
-    POTE
-    version
-    length
-    data
-    CRC
-  */
-
-  if(payload.length > 180){
+  if(payload.length > 40){
 
     alert(
-      "文字が長すぎます。\n180バイト以内にしてください。"
+      "現在のPOTE CODEでは40バイトまでです。"
     );
 
     return null;
@@ -242,12 +284,12 @@ function makeData(text){
 
   const data = [
 
-    80, // P
-    79, // O
-    84, // T
-    69, // E
+    80,
+    79,
+    84,
+    69,
 
-    1,  // version
+    1,
 
     payload.length,
 
@@ -259,141 +301,218 @@ function makeData(text){
     crc8(data)
   );
 
-  return data;
-}
-
-
-/* =========================================
-   byte → 2bit
-   ========================================= */
-
-function bytesToSymbols(bytes){
 
   const symbols = [];
 
-  for(const byte of bytes){
+  for(const b of data){
 
     symbols.push(
-      (byte >> 6) & 3
+      (b >> 6) & 3
     );
 
     symbols.push(
-      (byte >> 4) & 3
+      (b >> 4) & 3
     );
 
     symbols.push(
-      (byte >> 2) & 3
+      (b >> 2) & 3
     );
 
     symbols.push(
-      byte & 3
+      b & 3
     );
+
   }
 
   return symbols;
 }
 
 
-/* =========================================
-   固定スロット
-   ========================================= */
+/* =================================================
+   見た目用配置
+   ================================================= */
 
-function getSlots(){
+function createPositions(seed){
 
-  const slots = [];
+  const random = rng(seed);
 
-  const rings = [
+  const result = [];
 
-    {
-      radius:270,
-      count:20
-    },
+  /*
+    円の中に自然に散らす。
+    円周には並べない。
+  */
 
-    {
-      radius:340,
-      count:24
-    },
+  let attempts = 0;
 
-    {
-      radius:400,
-      count:24
+  while(
+    result.length < 68 &&
+    attempts < 3000
+  ){
+
+    attempts++;
+
+    const angle =
+      random() *
+      Math.PI * 2;
+
+    const radius =
+      Math.sqrt(
+        random()
+      ) * 415;
+
+    const x =
+      500 +
+      Math.cos(angle) *
+      radius;
+
+    const y =
+      500 +
+      Math.sin(angle) *
+      radius;
+
+    /*
+      中央ポテちゃんを避ける
+    */
+
+    const dx =
+      x - 500;
+
+    const dy =
+      y - 500;
+
+    if(
+      Math.sqrt(
+        dx*dx + dy*dy
+      ) < 145
+    ){
+      continue;
     }
 
-  ];
+    /*
+      右下Finderを避ける
+    */
 
-  for(const ring of rings){
+    if(
+      Math.sqrt(
+        (x-845)**2 +
+        (y-845)**2
+      ) < 75
+    ){
+      continue;
+    }
 
-    for(let i=0;i<ring.count;i++){
+    const size =
+      28 +
+      random()*25;
 
-      const angle =
-        -Math.PI/2 +
-        Math.PI*2*i/ring.count;
+    let overlap = false;
 
-      slots.push({
+    for(const p of result){
 
-        x:
-          500 +
-          Math.cos(angle) *
-          ring.radius,
+      const d =
+        Math.sqrt(
+          (x-p.x)**2 +
+          (y-p.y)**2
+        );
 
-        y:
-          500 +
-          Math.sin(angle) *
-          ring.radius
+      if(
+        d <
+        (size+p.size)*0.65
+      ){
 
-      });
+        overlap = true;
+        break;
+
+      }
 
     }
+
+    if(overlap) continue;
+
+    result.push({
+      x,
+      y,
+      size,
+      rotation:
+        random()*360,
+      color:
+        COLORS[
+          Math.floor(
+            random()*COLORS.length
+          )
+        ]
+    });
 
   }
 
-  return slots;
+  return result;
 }
 
 
-/* =========================================
-   SVG
-   ========================================= */
+/* =================================================
+   図形
+   ================================================= */
 
-function esc(str){
+function shape(type,p){
 
-  return String(str)
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;");
-}
+  const x = p.x;
+  const y = p.y;
+  const s = p.size;
+  const c = p.color;
+  const r = p.rotation;
 
+  if(type === 0){
 
-function circle(x,y,r,color){
+    return `
+      <circle
+        cx="${x}"
+        cy="${y}"
+        r="${s/2}"
+        fill="${c}"
+      />
+    `;
 
-  return `
-    <circle
-      cx="${x}"
-      cy="${y}"
-      r="${r}"
-      fill="${color}"
-    />
-  `;
-}
-
-
-function square(x,y,s,color){
-
-  return `
-    <rect
-      x="${x-s/2}"
-      y="${y-s/2}"
-      width="${s}"
-      height="${s}"
-      rx="5"
-      fill="${color}"
-    />
-  `;
-}
+  }
 
 
-function diamond(x,y,s,color){
+  if(type === 1){
+
+    return `
+      <polygon
+        points="
+          ${x},${y-s/2}
+          ${x+s/2},${y+s/2}
+          ${x-s/2},${y+s/2}
+        "
+        fill="${c}"
+        transform="
+          rotate(${r} ${x} ${y})
+        "
+      />
+    `;
+
+  }
+
+
+  if(type === 2){
+
+    return `
+      <rect
+        x="${x-s/2}"
+        y="${y-s/2}"
+        width="${s}"
+        height="${s}"
+        rx="${s*.16}"
+        fill="${c}"
+        transform="
+          rotate(${r} ${x} ${y})
+        "
+      />
+    `;
+
+  }
+
 
   return `
     <polygon
@@ -403,106 +522,100 @@ function diamond(x,y,s,color){
         ${x},${y+s/2}
         ${x-s/2},${y}
       "
-      fill="${color}"
-    />
-  `;
-}
-
-
-function triangle(x,y,s,color){
-
-  const h =
-    s * 0.866;
-
-  return `
-    <polygon
-      points="
-        ${x},${y-h/2}
-        ${x+s/2},${y+h/2}
-        ${x-s/2},${y+h/2}
+      fill="${c}"
+      transform="
+        rotate(${r} ${x} ${y})
       "
-      fill="${color}"
     />
   `;
+
 }
 
 
-/* =========================================
-   ポテちゃんマーク
-   ========================================= */
+/* =================================================
+   POTEちゃん
+   ================================================= */
 
-function drawPote(){
+function pote(){
 
   return `
 
-    <!-- Pote -->
     <g>
 
-      <ellipse
-        cx="500"
-        cy="500"
-        rx="105"
-        ry="125"
-        fill="#b77b42"
+      <!-- potato -->
+      <path
+        d="
+          M500 372
+          C440 370 390 420 382 490
+          C374 565 410 632 482 640
+          C555 648 620 600 622 520
+          C624 440 575 375 500 372
+          Z
+        "
+        fill="#b77b43"
       />
 
+      <!-- eyes -->
       <ellipse
         cx="465"
-        cy="475"
-        rx="12"
-        ry="17"
+        cy="485"
+        rx="11"
+        ry="16"
         fill="#51483d"
       />
 
       <ellipse
         cx="535"
-        cy="475"
-        rx="12"
-        ry="17"
+        cy="485"
+        rx="11"
+        ry="16"
         fill="#51483d"
       />
 
+      <!-- mouth -->
       <path
         d="
-          M465 530
-          Q500 555 535 530
+          M465 535
+          Q500 560 535 535
         "
         fill="none"
         stroke="#51483d"
-        stroke-width="8"
+        stroke-width="7"
         stroke-linecap="round"
       />
 
     </g>
+
   `;
 }
 
 
-/* =========================================
-   右下Finder
-   ========================================= */
+/* =================================================
+   subtle finder
+   ================================================= */
 
-function drawFinder(){
+function finder(){
 
   return `
 
     <g>
 
+      <!-- 周囲の図形に紛れる -->
       <polygon
         points="
-          850,810
+          845,805
           890,850
-          850,890
-          810,850
+          845,895
+          800,850
         "
         fill="#79a978"
       />
 
       <circle
-        cx="850"
+        cx="845"
         cy="850"
-        r="10"
-        fill="#e4a52f"
+        r="9"
+        fill="#e1a536"
       />
 
     </g>
@@ -511,67 +624,16 @@ function drawFinder(){
 }
 
 
-/* =========================================
-   データ図形
-   ========================================= */
-
-function drawSymbol(symbol,x,y){
-
-  const size = 44;
-
-  const color =
-    COLORS[
-      (x+y)%COLORS.length
-    ];
-
-  switch(symbol){
-
-    case 0:
-      return circle(
-        x,
-        y,
-        size/2,
-        color
-      );
-
-    case 1:
-      return triangle(
-        x,
-        y,
-        size,
-        color
-      );
-
-    case 2:
-      return square(
-        x,
-        y,
-        size,
-        color
-      );
-
-    case 3:
-      return diamond(
-        x,
-        y,
-        size,
-        color
-      );
-
-  }
-
-}
-
-
-/* =========================================
-   生成
-   ========================================= */
+/* =================================================
+   GENERATE
+   ================================================= */
 
 function generate(){
 
   const text =
-    document.getElementById("text")
-      .value;
+    document.getElementById(
+      "input"
+    ).value;
 
   if(!text){
 
@@ -582,55 +644,63 @@ function generate(){
     return;
   }
 
-  const data =
-    makeData(text);
-
-  if(!data) return;
 
   const symbols =
-    bytesToSymbols(data);
+    makeSymbols(text);
 
-  const slots =
-    getSlots();
+  if(!symbols) return;
 
-  let shapes = "";
+
+  const seed =
+    hash(text);
+
+  const positions =
+    createPositions(seed);
+
+
+  let dataShapes = "";
+
 
   /*
-    未使用スロットも
-    見た目を自然にするため
-    薄い図形を配置
+    データを散らして配置。
+
+    同じ入力なら
+    同じ配置になる。
   */
 
-  for(let i=0;i<slots.length;i++){
+  for(
+    let i=0;
+    i<positions.length;
+    i++
+  ){
 
-    const slot =
-      slots[i];
+    const p =
+      positions[i];
 
-    let symbol;
+    let type;
 
     if(i < symbols.length){
 
-      symbol =
+      type =
         symbols[i];
 
     }else{
 
       /*
-        未使用部分
-        → 装飾として固定パターン
+        データがない場所は
+        装飾図形
       */
 
-      symbol =
-        (i * 7 + 3) % 4;
+      type =
+        Math.floor(
+          (seed + i*17) % 4
+        );
 
     }
 
-    shapes +=
-      drawSymbol(
-        symbol,
-        slot.x,
-        slot.y
-      );
+    dataShapes +=
+      shape(type,p);
+
   }
 
 
@@ -640,47 +710,48 @@ function generate(){
   xmlns="http://www.w3.org/2000/svg"
   viewBox="0 0 1000 1000">
 
+  <!-- background -->
   <rect
     width="1000"
     height="1000"
-    rx="50"
+    rx="60"
     fill="#fffaf0"
   />
 
-  <!-- 外側の円 -->
+  <!-- very subtle boundary -->
   <circle
     cx="500"
     cy="500"
-    r="450"
+    r="455"
     fill="none"
-    stroke="#eadfcb"
-    stroke-width="4"
+    stroke="#eadfce"
+    stroke-width="3"
   />
 
-  <!-- データ -->
-  ${shapes}
+  <!-- colorful geometry -->
+  ${dataShapes}
 
-  <!-- 中央POTE -->
-  ${drawPote()}
+  <!-- central POTE -->
+  ${pote()}
 
-  <!-- 右下Finder -->
-  ${drawFinder()}
+  <!-- hidden-ish finder -->
+  ${finder()}
 
 </svg>
 `;
 
 
   document.getElementById(
-    "codeArea"
+    "output"
   ).innerHTML =
     currentSVG;
 
 }
 
 
-/* =========================================
-   SVG保存
-   ========================================= */
+/* =================================================
+   SAVE
+   ================================================= */
 
 function saveSVG(){
 
@@ -693,6 +764,7 @@ function saveSVG(){
     return;
   }
 
+
   const blob =
     new Blob(
       [currentSVG],
@@ -701,8 +773,10 @@ function saveSVG(){
       }
     );
 
+
   const url =
     URL.createObjectURL(blob);
+
 
   const a =
     document.createElement("a");
@@ -714,7 +788,9 @@ function saveSVG(){
 
   a.click();
 
+
   URL.revokeObjectURL(url);
+
 }
 
 </script>
