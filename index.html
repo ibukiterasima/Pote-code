@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>POTE CODE</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f4eddf;
+  color: #493d31;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  text-align: center;
+}
+
+h1 {
+  margin-top: 35px;
+  font-size: 32px;
+}
+
+.subtitle {
+  color: #806f5d;
+  margin-bottom: 25px;
+}
+
+.box {
+  width: min(92%, 600px);
+  margin: 20px auto;
+  padding: 22px;
+  background: #fffaf0;
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.08);
+}
+
+input {
+  width: 100%;
+  padding: 15px;
+  border-radius: 12px;
+  border: 1px solid #d5c5ad;
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+button {
+  border: none;
+  padding: 13px 20px;
+  border-radius: 12px;
+  background: #8a6840;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:active {
+  transform: scale(.97);
+}
+
+#code {
+  margin: 25px auto;
+  display: grid;
+
+  /*
+    25 × 25 の幾何学コード
+  */
+  grid-template-columns: repeat(25, 1fr);
+
+  width: min(85vw, 500px);
+  aspect-ratio: 1 / 1;
+
+  background: white;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.cell {
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.black {
+  background: #493d31;
+}
+
+.white {
+  background: white;
+}
+
+/*
+  ポテマーク
+*/
+.pote {
+  background: #8a6840;
+  border-radius: 50%;
+  position: relative;
+}
+
+.pote::after {
+  content: "🥔";
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: clamp(7px, 2vw, 15px);
+}
+
+.info {
+  margin-top: 15px;
+  color: #806f5d;
+  font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🥔 POTE CODE</h1>
+
+<div class="subtitle">
+ポテちゃん界の幾何学データコード
+</div>
+
+<div class="box">
+
+  <input
+    id="text"
+    type="text"
+    value="P-04721"
+    placeholder="入れたいデータ"
+  >
+
+  <br>
+
+  <button onclick="makeCode()">
+    ポテコードを生成
+  </button>
+
+  <div id="code"></div>
+
+  <div class="info">
+    中央と右下のポテマークが基準マーク
+  </div>
+
+</div>
+
+<script>
+
+/*
+=========================================
+ POTE CODE v1
+=========================================
+*/
+
+/* コードのサイズ */
+const SIZE = 25;
+
+
+/*
+  文字 → 数字
+*/
+function stringToNumbers(text) {
+
+  const result = [];
+
+  for (let i = 0; i < text.length; i++) {
+
+    result.push(
+      text.charCodeAt(i)
+    );
+
+  }
+
+  return result;
+}
+
+
+/*
+  データから簡単な乱数を作る
+
+  同じデータ
+      ↓
+  同じ模様
+
+  違うデータ
+      ↓
+  違う模様
+*/
+function randomSeed(text) {
+
+  let seed = 0;
+
+  for (let i = 0; i < text.length; i++) {
+
+    seed =
+      (seed * 31 +
+       text.charCodeAt(i)) >>> 0;
+
+  }
+
+  return seed;
+}
+
+
+/*
+  乱数
+*/
+function random(seed) {
+
+  seed ^= seed << 13;
+  seed ^= seed >>> 17;
+  seed ^= seed << 5;
+
+  return seed >>> 0;
+}
+
+
+/*
+  ポテコード生成
+*/
+function createPattern(text) {
+
+  const grid = [];
+
+  for (let y = 0; y < SIZE; y++) {
+
+    grid[y] = [];
+
+    for (let x = 0; x < SIZE; x++) {
+
+      grid[y][x] = 0;
+
+    }
+
+  }
+
+
+  /*
+  --------------------------------
+  外枠
+  --------------------------------
+  */
+
+  for (let i = 0; i < SIZE; i++) {
+
+    grid[0][i] = i % 2;
+    grid[SIZE - 1][i] = (i + 1) % 2;
+
+    grid[i][0] = i % 2;
+    grid[i][SIZE - 1] = (i + 1) % 2;
+
+  }
+
+
+  /*
+  --------------------------------
+  データ
+  --------------------------------
+  */
+
+  const numbers =
+    stringToNumbers(text);
+
+  let seed =
+    randomSeed(text);
+
+
+  /*
+  中央・右下の
+  ポテマークを予約
+  */
+
+  const reserved = [];
+
+  reserved.push({
+    x: 12,
+    y: 12
+  });
+
+  reserved.push({
+    x: 22,
+    y: 22
+  });
+
+
+  /*
+  --------------------------------
+  幾何学模様
+  --------------------------------
+  */
+
+  for (let y = 1; y < SIZE - 1; y++) {
+
+    for (let x = 1; x < SIZE - 1; x++) {
+
+
+      /*
+      ポテマーク周辺は空ける
+      */
+
+      let blocked = false;
+
+      for (const p of reserved) {
+
+        if (
+          Math.abs(x - p.x) <= 2 &&
+          Math.abs(y - p.y) <= 2
+        ) {
+
+          blocked = true;
+
+        }
+
+      }
+
+      if (blocked) continue;
+
+
+      /*
+      データから
+      模様を作る
+      */
+
+      const n =
+        numbers[
+          (x + y * SIZE) %
+          numbers.length
+        ];
+
+
+      seed = random(seed);
+
+
+      const value =
+        (n + seed + x * 17 + y * 31)
+        % 2;
+
+
+      grid[y][x] = value;
+
+    }
+
+  }
+
+
+  return grid;
+
+}
+
+
+/*
+=========================================
+ ポテマーク
+=========================================
+*/
+
+function drawPoteMark(grid, cx, cy) {
+
+  for (let y = -2; y <= 2; y++) {
+
+    for (let x = -2; x <= 2; x++) {
+
+      const distance =
+        Math.abs(x) + Math.abs(y);
+
+      if (
+        distance === 0 ||
+        distance === 2
+      ) {
+
+        grid[cy + y][cx + x] = 1;
+
+      }
+
+    }
+
+  }
+
+}
+
+
+/*
+=========================================
+ 表示
+=========================================
+*/
+
+function makeCode() {
+
+  const text =
+    document.getElementById("text").value;
+
+  if (!text) {
+
+    alert("データを入力してね！");
+
+    return;
+
+  }
+
+
+  const grid =
+    createPattern(text);
+
+
+  /*
+  中央ポテマーク
+  */
+
+  drawPoteMark(
+    grid,
+    12,
+    12
+  );
+
+
+  /*
+  右下ポテマーク
+  */
+
+  drawPoteMark(
+    grid,
+    22,
+    22
+  );
+
+
+  /*
+  HTMLに表示
+  */
+
+  const code =
+    document.getElementById("code");
+
+  code.innerHTML = "";
+
+
+  for (let y = 0; y < SIZE; y++) {
+
+    for (let x = 0; x < SIZE; x++) {
+
+      const cell =
+        document.createElement("div");
+
+      cell.className =
+        "cell " +
+        (grid[y][x]
+          ? "black"
+          : "white");
+
+
+      /*
+      ポテマーク
+      */
+
+      if (
+        (x === 12 && y === 12) ||
+        (x === 22 && y === 22)
+      ) {
+
+        cell.classList.add("pote");
+
+      }
+
+
+      code.appendChild(cell);
+
+    }
+
+  }
+
+}
+
+
+/*
+最初から生成
+*/
+
+makeCode();
+
+</script>
+
+</body>
+</html>
