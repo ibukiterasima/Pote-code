@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-
 <title>POTE CODE</title>
 
 <style>
@@ -23,7 +22,7 @@ body{
     sans-serif;
 }
 
-.wrap{
+.app{
   width:min(760px,100%);
   margin:auto;
   padding:24px 16px 50px;
@@ -39,16 +38,16 @@ h1{
 .sub{
   text-align:center;
   font-size:12px;
-  opacity:.55;
+  opacity:.5;
   margin:5px 0 20px;
 }
 
-.box{
+.panel{
   background:#fffdf8;
-  border:1px solid #e3dacb;
+  border:1px solid #e2d8c8;
   border-radius:25px;
   padding:18px;
-  box-shadow:0 10px 35px rgba(70,55,35,.08);
+  box-shadow:0 12px 35px rgba(70,55,35,.08);
 }
 
 textarea{
@@ -56,23 +55,23 @@ textarea{
   height:90px;
   resize:none;
 
-  border:2px solid #ded4c5;
+  padding:14px;
+
+  border:2px solid #ded4c4;
   border-radius:15px;
 
   background:#fffefa;
   color:#554a3e;
-
-  padding:13px;
 
   font-size:16px;
   outline:none;
 }
 
 textarea:focus{
-  border-color:#7e9e79;
+  border-color:#7e9d78;
 }
 
-.count{
+.counter{
   text-align:right;
   font-size:11px;
   opacity:.5;
@@ -102,7 +101,7 @@ button.save{
 }
 
 #result{
-  margin-top:18px;
+  margin-top:20px;
   display:flex;
   justify-content:center;
 }
@@ -127,44 +126,40 @@ button.save{
 
 <body>
 
-<div class="wrap">
+<div class="app">
 
 <h1>POTE CODE</h1>
 
 <div class="sub">
-fixed colorful geometric code
+COLORFUL GEOMETRIC CODE
 </div>
 
-<div class="box">
+<div class="panel">
 
 <textarea
   id="text"
-  maxlength="50"
+  maxlength="25"
   placeholder="POTE CODEに入れる文字"></textarea>
 
-<div class="count">
-<span id="counter">0</span> / 50
+<div class="counter">
+<span id="counter">0</span> / 25
 </div>
 
 <button onclick="generate()">
 POTE CODEを生成
 </button>
 
-<button
-  class="save"
-  onclick="saveSVG()">
+<button class="save" onclick="saveSVG()">
 SVGとして保存
 </button>
 
 <div id="result"></div>
 
 <div class="note">
-図形の位置は固定。<br>
-図形がある＝1 / ない＝0
+25文字対応 / 固定配置 / 図形あり＝1・なし＝0
 </div>
 
 </div>
-
 </div>
 
 
@@ -172,453 +167,352 @@ SVGとして保存
 
 /* =====================================================
    POTE CODE
-   REFERENCE LAYOUT
-   =====================================================
+   ================================================
 
-   このSLOT配置は、今回送ってくれた画像の
-   図形の中心位置を基準にしている。
+   ★今回の方式
 
-   ★重要★
+   元画像の大きな図形
+        ↓
+   固定デザイン
 
-   x / y はデータによって変わらない。
+   さらに
+   小さな図形スロットを大量追加
+        ↓
+   位置は完全固定
 
-   変わるのは
-      「その場所に図形があるか」
-   だけ。
+   16スロット
+        ↓
+   13bit
+
+   33グループ
+        ↓
+   429bit
+
+   25文字のUTF-16
+        ↓
+   400bit
+
+   長さ 8bit
+   本文 400bit
+   CRC 16bit
+        ↓
+   合計424bit
+
+   429bitに収まる！
 
 ===================================================== */
 
 
 /* =====================================================
-   固定スロット
+   色
 ===================================================== */
 
-const SLOTS = [
+const COLORS = [
+  "#7EB477",
+  "#9ABC69",
+  "#E5A62B",
+  "#D88A3D",
+  "#568EA2",
+  "#78A697",
+  "#B97E3D",
+  "#6E956B"
+];
 
-  /* 上段 */
+
+/* =====================================================
+   元画像っぽい大きな固定図形
+===================================================== */
+
+const LARGE_SHAPES = [
+
+  /* 上 */
 
   {
-    x:502,y:87,
-    size:104,
-    shape:"circle",
+    x:350,y:88,
+    s:100,
+    type:"triangle",
+    color:"#80A98B",
+    rot:45
+  },
+
+  {
+    x:505,y:78,
+    s:102,
+    type:"circle",
     color:"#D8893E",
     rot:0
   },
 
   {
-    x:656,y:94,
-    size:90,
-    shape:"triangle",
-    color:"#B8B54D",
-    rot:8
+    x:668,y:94,
+    s:92,
+    type:"triangle",
+    color:"#B9B54E",
+    rot:90
   },
 
 
-  /* 上2段 */
+  /* 上2 */
 
   {
-    x:185,y:205,
-    size:78,
-    shape:"triangle",
-    color:"#7EB75C",
+    x:330,y:202,
+    s:100,
+    type:"rect",
+    color:"#F1B12A",
+    rot:0
+  },
+
+  {
+    x:503,y:207,
+    s:91,
+    type:"triangle",
+    color:"#C6813D",
+    rot:180
+  },
+
+  {
+    x:683,y:205,
+    s:100,
+    type:"rect",
+    color:"#F0AE29",
+    rot:0
+  },
+
+
+  /* 上左右 */
+
+  {
+    x:180,y:205,
+    s:82,
+    type:"triangle",
+    color:"#79B55A",
     rot:-15
   },
 
   {
-    x:334,y:208,
-    size:90,
-    shape:"rect",
-    color:"#F1B32C",
-    rot:0
-  },
-
-  {
-    x:501,y:210,
-    size:80,
-    shape:"triangle",
-    color:"#C9823E",
-    rot:180
-  },
-
-  {
-    x:678,y:209,
-    size:90,
-    shape:"rect",
-    color:"#F0B02B",
-    rot:0
-  },
-
-  {
-    x:820,y:203,
-    size:82,
-    shape:"triangle",
-    color:"#4F879A",
+    x:824,y:207,
+    s:86,
+    type:"triangle",
+    color:"#50899D",
     rot:30
   },
 
 
-  /* 左右上 */
+  /* 左右の丸 */
 
   {
-    x:82,y:437,
-    size:94,
-    shape:"triangle",
-    color:"#D28A3C",
-    rot:180
-  },
-
-  {
-    x:204,y:336,
-    size:76,
-    shape:"circle",
-    color:"#C8843A",
+    x:202,y:342,
+    s:82,
+    type:"circle",
+    color:"#C7833A",
     rot:0
   },
 
   {
-    x:246,y:466,
-    size:82,
-    shape:"corner",
-    color:"#80B96D",
+    x:805,y:342,
+    s:82,
+    type:"circle",
+    color:"#C7833A",
     rot:0
   },
 
+
+  /* 青い三角 */
+
   {
-    x:424,y:314,
-    size:74,
-    shape:"triangle",
-    color:"#4D91A8",
+    x:431,y:320,
+    s:78,
+    type:"triangle",
+    color:"#4F8FA5",
     rot:90
   },
 
   {
-    x:583,y:314,
-    size:74,
-    shape:"triangle",
-    color:"#4D91A8",
+    x:581,y:320,
+    s:78,
+    type:"triangle",
+    color:"#4F8FA5",
     rot:-90
   },
 
-  {
-    x:805,y:336,
-    size:76,
-    shape:"circle",
-    color:"#C8843A",
-    rot:0
-  },
+
+  /* 左右大三角 */
 
   {
-    x:764,y:468,
-    size:82,
-    shape:"corner",
-    color:"#80B96D",
+    x:80,y:438,
+    s:105,
+    type:"triangle",
+    color:"#D18A3E",
     rot:180
   },
 
   {
-    x:929,y:437,
-    size:94,
-    shape:"triangle",
-    color:"#D28A3C",
+    x:930,y:438,
+    s:105,
+    type:"triangle",
+    color:"#D18A3E",
     rot:0
   },
 
 
-  /* 小さい左右のパーツ */
+  /* 左右緑 */
 
   {
-    x:113,y:275,
-    size:32,
-    shape:"leaf",
-    color:"#79B485",
-    rot:-25
-  },
-
-  {
-    x:330,y:318,
-    size:32,
-    shape:"line",
-    color:"#477E52",
+    x:250,y:468,
+    s:84,
+    type:"corner",
+    color:"#80B86D",
     rot:0
   },
 
   {
-    x:678,y:331,
-    size:42,
-    shape:"line",
-    color:"#477E52",
+    x:762,y:468,
+    s:84,
+    type:"corner",
+    color:"#80B86D",
+    rot:180
+  },
+
+
+  /* 中央リング */
+
+  {
+    x:505,y:400,
+    s:62,
+    type:"triangle",
+    color:"#E6A52C",
     rot:0
   },
 
   {
-    x:914,y:281,
-    size:34,
-    shape:"leaf",
-    color:"#9ABFAF",
-    rot:25
-  },
-
-
-  /* 中央まわり上 */
-
-  {
-    x:506,y:403,
-    size:62,
-    shape:"triangle",
-    color:"#E9A92C",
-    rot:0
-  },
-
-  {
-    x:396,y:467,
-    size:70,
-    shape:"triangle",
-    color:"#E5A12C",
+    x:405,y:465,
+    s:67,
+    type:"triangle",
+    color:"#E4A02B",
     rot:45
   },
 
   {
-    x:615,y:466,
-    size:70,
-    shape:"triangle",
-    color:"#E5A12C",
+    x:605,y:465,
+    s:67,
+    type:"triangle",
+    color:"#E4A02B",
     rot:-45
   },
 
-
-  /* 中央左右 */
-
   {
-    x:343,y:572,
-    size:48,
-    shape:"triangle",
+    x:350,y:570,
+    s:50,
+    type:"triangle",
     color:"#E5A12C",
     rot:-90
   },
 
   {
-    x:666,y:575,
-    size:48,
-    shape:"triangle",
+    x:660,y:570,
+    s:50,
+    type:"triangle",
     color:"#E5A12C",
     rot:90
   },
 
-
-  /* 中央左右外 */
-
   {
-    x:73,y:573,
-    size:82,
-    shape:"diamond",
-    color:"#9FB56D",
-    rot:0
+    x:405,y:675,
+    s:67,
+    type:"triangle",
+    color:"#E4A02B",
+    rot:135
   },
 
   {
-    x:245,y:676,
-    size:80,
-    shape:"triangle",
-    color:"#82B76C",
-    rot:150
+    x:605,y:675,
+    s:67,
+    type:"triangle",
+    color:"#E4A02B",
+    rot:-135
   },
 
   {
-    x:397,y:677,
-    size:70,
-    shape:"triangle",
-    color:"#BD803B",
-    rot:90
-  },
-
-  {
-    x:615,y:677,
-    size:70,
-    shape:"triangle",
-    color:"#91BA6C",
-    rot:-90
-  },
-
-  {
-    x:763,y:676,
-    size:80,
-    shape:"triangle",
-    color:"#82B76C",
-    rot:30
-  },
-
-  {
-    x:940,y:574,
-    size:82,
-    shape:"diamond",
-    color:"#9FB56D",
-    rot:0
-  },
-
-
-  /* 中段の細いパーツ */
-
-  {
-    x:183,y:630,
-    size:42,
-    shape:"line",
-    color:"#5B9369",
-    rot:30
-  },
-
-  {
-    x:331,y:780,
-    size:55,
-    shape:"line",
-    color:"#6E9C55",
-    rot:0
-  },
-
-  {
-    x:678,y:782,
-    size:72,
-    shape:"line",
-    color:"#6E9C55",
-    rot:0
-  },
-
-  {
-    x:824,y:633,
-    size:42,
-    shape:"line",
-    color:"#5B9369",
-    rot:-30
-  },
-
-
-  /* 中央下 */
-
-  {
-    x:507,y:737,
-    size:64,
-    shape:"triangle",
-    color:"#E7A52B",
+    x:505,y:740,
+    s:62,
+    type:"triangle",
+    color:"#E5A12C",
     rot:180
+  },
+
+
+  /* 左右ダイヤ */
+
+  {
+    x:75,y:575,
+    s:86,
+    type:"diamond",
+    color:"#A4B66D",
+    rot:0
+  },
+
+  {
+    x:940,y:575,
+    s:86,
+    type:"diamond",
+    color:"#A4B66D",
+    rot:0
+  },
+
+
+  /* 下左右 */
+
+  {
+    x:205,y:805,
+    s:82,
+    type:"circle",
+    color:"#C8833A",
+    rot:0
+  },
+
+  {
+    x:805,y:805,
+    s:82,
+    type:"circle",
+    color:"#C8833A",
+    rot:0
   },
 
 
   /* 下段 */
 
   {
-    x:209,y:805,
-    size:78,
-    shape:"circle",
-    color:"#C8843A",
+    x:330,y:925,
+    s:90,
+    type:"rect",
+    color:"#F0AE29",
     rot:0
   },
 
   {
-    x:425,y:826,
-    size:76,
-    shape:"triangle",
-    color:"#B47C39",
-    rot:90
-  },
-
-  {
-    x:583,y:827,
-    size:68,
-    shape:"triangle",
-    color:"#8BB66C",
-    rot:-90
-  },
-
-  {
-    x:803,y:806,
-    size:78,
-    shape:"circle",
-    color:"#C8843A",
-    rot:0
-  },
-
-
-  /* 下2段 */
-
-  {
-    x:193,y:938,
-    size:86,
-    shape:"leaf",
-    color:"#78A953",
-    rot:-45
-  },
-
-  {
-    x:335,y:929,
-    size:88,
-    shape:"rect",
-    color:"#F0B02B",
+    x:505,y:920,
+    s:86,
+    type:"triangle",
+    color:"#D78B3E",
     rot:0
   },
 
   {
-    x:504,y:926,
-    size:82,
-    shape:"triangle",
-    color:"#D68B3D",
+    x:680,y:925,
+    s:90,
+    type:"rect",
+    color:"#F0AE29",
     rot:0
   },
 
-  {
-    x:675,y:928,
-    size:88,
-    shape:"rect",
-    color:"#F0B02B",
-    rot:0
-  },
+
+  /* 下 */
 
   {
-    x:812,y:936,
-    size:66,
-    shape:"triangle",
-    color:"#4E899B",
-    rot:150
-  },
-
-
-  /* 最下段 */
-
-  {
-    x:330,y:1040,
-    size:62,
-    shape:"leaf",
-    color:"#8D8B80",
-    rot:-20
-  },
-
-  {
-    x:504,y:1048,
-    size:88,
-    shape:"circle",
-    color:"#D58A3C",
-    rot:0
-  },
-
-  {
-    x:680,y:1044,
-    size:55,
-    shape:"leaf",
-    color:"#78AF77",
-    rot:0
-  },
-
-  {
-    x:387,y:1059,
-    size:42,
-    shape:"line",
-    color:"#765A36",
-    rot:45
-  },
-
-  {
-    x:624,y:1074,
-    size:30,
-    shape:"leaf",
-    color:"#8BB89B",
+    x:505,y:1050,
+    s:94,
+    type:"circle",
+    color:"#D5893D",
     rot:0
   }
 
@@ -626,153 +520,619 @@ const SLOTS = [
 
 
 /* =====================================================
-   中央ポテちゃん
+   小図形データスロット
+
+   528個作る。
+
+   16個 = 1グループ
+   33グループ
+
+   ★位置はこのページを開くたび
+     同じになる。
+
+   ★データによって移動しない。
+
 ===================================================== */
 
-function drawPote(){
-
-  return `
-
-  <g>
-
-    <!-- potato -->
-
-    <path
-      d="
-        M500 470
-
-        C456 466
-        424 493
-        416 540
-
-        C407 590
-        429 640
-        475 655
-
-        C520 670
-        575 650
-        590 604
-
-        C607 551
-        586 499
-        547 480
-
-        C532 473
-        516 470
-        500 470
-
-        Z
-      "
-
-      fill="#D98E32"
-    />
+const MICRO_SLOTS = [];
 
 
-    <!-- subtle potato shading -->
+/* =====================================================
+   固定乱数
+===================================================== */
 
-    <path
-      d="
-        M450 510
-        C430 550
-        434 604
-        466 631
-      "
+function fixedRandom(){
 
-      fill="none"
-      stroke="#C77D2D"
-      stroke-width="10"
-      stroke-linecap="round"
-      opacity=".22"
-    />
+  let seed = 739271;
 
+  return function(){
 
-    <!-- eyes -->
+    seed =
+      (Math.imul(
+        seed ^ (seed >>> 16),
+        2246822519
+      )) >>> 0;
 
-    <circle
-      cx="468"
-      cy="552"
-      r="8"
-      fill="#6D542E"
-    />
+    seed += 3266489917;
 
-    <circle
-      cx="541"
-      cy="552"
-      r="8"
-      fill="#6D542E"
-    />
+    seed =
+      (seed ^ (seed >>> 13)) >>> 0;
 
+    return seed / 4294967296;
 
-    <!-- nose -->
-
-    <circle
-      cx="505"
-      cy="573"
-      r="7"
-      fill="#76562B"
-    />
-
-
-    <!-- tiny potato marks -->
-
-    <circle
-      cx="444"
-      cy="588"
-      r="4"
-      fill="#B97029"
-      opacity=".35"
-    />
-
-    <circle
-      cx="560"
-      cy="604"
-      r="4"
-      fill="#B97029"
-      opacity=".35"
-    />
-
-  </g>
-
-  `;
+  };
 
 }
 
 
 /* =====================================================
-   中央リング
+   大図形との距離
 ===================================================== */
 
-function drawCenterRing(){
+function isNearLargeShape(x,y,r){
 
-  const parts = [
+  for(const s of LARGE_SHAPES){
 
-    [500,403,60,0],
-    [396,467,67,45],
-    [615,466,67,-45],
-    [343,572,46,-90],
-    [666,575,46,90],
-    [397,677,67,135],
-    [615,677,67,-135],
-    [507,737,60,180]
+    const dx=x-s.x;
+    const dy=y-s.y;
 
-  ];
+    const d=Math.sqrt(
+      dx*dx+dy*dy
+    );
 
-  let out="";
+    /*
+      大図形の周囲には
+      小図形を置かない
+    */
 
-  for(const p of parts){
+    if(
+      d <
+      s.s*0.58+r+8
+    ){
 
-    out += drawShape(
-      "triangle",
-      p[0],
-      p[1],
-      p[2],
-      "#E5A12C",
-      p[3]
+      return true;
+
+    }
+
+  }
+
+  return false;
+
+}
+
+
+/* =====================================================
+   小図形スロット生成
+
+   ランダムではない。
+
+   固定seedなので
+   毎回完全に同じ座標。
+===================================================== */
+
+function createMicroSlots(){
+
+  const rand=fixedRandom();
+
+  const slots=[];
+
+  const maxSlots=528;
+
+  let tries=0;
+
+  while(
+    slots.length<maxSlots &&
+    tries<300000
+  ){
+
+    tries++;
+
+
+    /*
+      円形の範囲に配置
+    */
+
+    const x=
+      60+
+      rand()*890;
+
+    const y=
+      48+
+      rand()*1035;
+
+
+    /*
+      中央ポテちゃんの領域
+    */
+
+    const dx=x-505;
+    const dy=y-575;
+
+    const centerDistance=
+      Math.sqrt(
+        dx*dx+dy*dy
+      );
+
+
+    if(centerDistance<155){
+
+      continue;
+
+    }
+
+
+    /*
+      外周の外側には出しすぎない
+    */
+
+    const outerX=
+      (x-505)/455;
+
+    const outerY=
+      (y-575)/535;
+
+    if(
+      outerX*outerX+
+      outerY*outerY >
+      1
+    ){
+
+      continue;
+
+    }
+
+
+    const r=5.3;
+
+
+    /*
+      大図形との重なり防止
+    */
+
+    if(
+      isNearLargeShape(
+        x,y,r
+      )
+    ){
+
+      continue;
+
+    }
+
+
+    /*
+      小図形同士も重ならない
+    */
+
+    let collision=false;
+
+    for(const p of slots){
+
+      const px=x-p.x;
+      const py=y-p.y;
+
+      const d=Math.sqrt(
+        px*px+py*py
+      );
+
+      if(d<14){
+
+        collision=true;
+        break;
+
+      }
+
+    }
+
+
+    if(collision){
+
+      continue;
+
+    }
+
+
+    slots.push({
+      x,
+      y,
+      size:9,
+      type:
+        Math.floor(
+          rand()*4
+        ),
+      color:
+        COLORS[
+          Math.floor(
+            rand()*COLORS.length
+          )
+        ],
+      rot:
+        Math.floor(
+          rand()*12
+        )*30
+    });
+
+  }
+
+
+  /*
+    足りなかった場合は
+    安全な固定格子から追加
+  */
+
+  if(slots.length<maxSlots){
+
+    for(
+      let y=55;
+      y<1080 &&
+      slots.length<maxSlots;
+      y+=18
+    ){
+
+      for(
+        let x=55;
+        x<980 &&
+        slots.length<maxSlots;
+        x+=18
+      ){
+
+        const r=5.3;
+
+        if(
+          isNearLargeShape(
+            x,y,r
+          )
+        ){
+
+          continue;
+
+        }
+
+        const dx=x-505;
+        const dy=y-575;
+
+        if(
+          Math.sqrt(
+            dx*dx+dy*dy
+          )<155
+        ){
+
+          continue;
+
+        }
+
+        let ok=true;
+
+        for(const p of slots){
+
+          const dx2=x-p.x;
+          const dy2=y-p.y;
+
+          if(
+            Math.sqrt(
+              dx2*dx2+
+              dy2*dy2
+            )<14
+          ){
+
+            ok=false;
+            break;
+
+          }
+
+        }
+
+        if(!ok) continue;
+
+        slots.push({
+          x,
+          y,
+          size:9,
+          type:
+            slots.length%4,
+          color:
+            COLORS[
+              slots.length%
+              COLORS.length
+            ],
+          rot:
+            (slots.length%12)*30
+        });
+
+      }
+
+    }
+
+  }
+
+
+  return slots.slice(
+    0,
+    maxSlots
+  );
+
+}
+
+
+MICRO_SLOTS.push(
+  ...createMicroSlots()
+);
+
+
+/* =====================================================
+   組み合わせテーブル
+
+   16個のうち8個だけON。
+
+   C(16,8)=12870通り。
+
+   そのうち8192通りを
+   13bitデータに割り当てる。
+
+   ★必ず8個ONになるので、
+     どのPOTE CODEも
+     小図形の密度が同じ。
+
+===================================================== */
+
+const PATTERNS=[];
+
+
+function createPatterns(){
+
+  for(
+    let mask=0;
+    mask<(1<<16);
+    mask++
+  ){
+
+    let count=0;
+
+    for(let i=0;i<16;i++){
+
+      if(mask&(1<<i)){
+        count++;
+      }
+
+    }
+
+    if(count===8){
+
+      PATTERNS.push(mask);
+
+      if(PATTERNS.length>=8192){
+
+        break;
+
+      }
+
+    }
+
+  }
+
+}
+
+createPatterns();
+
+
+/* =====================================================
+   CRC16
+===================================================== */
+
+function crc16(bytes){
+
+  let crc=0xFFFF;
+
+  for(const b of bytes){
+
+    crc ^= b;
+
+    for(let i=0;i<8;i++){
+
+      if(crc&1){
+
+        crc=
+          (crc>>1)^0xA001;
+
+      }else{
+
+        crc>>=1;
+
+      }
+
+    }
+
+  }
+
+  return crc&0xFFFF;
+
+}
+
+
+/* =====================================================
+   16bit
+===================================================== */
+
+function bits16(n){
+
+  const result=[];
+
+  for(
+    let i=15;
+    i>=0;
+    i--
+  ){
+
+    result.push(
+      (n>>i)&1
     );
 
   }
 
-  return out;
+  return result;
+
+}
+
+
+/* =====================================================
+   データ作成
+
+   UTF-16なので
+   日本語1文字=16bit。
+
+   25文字
+   =400bit
+===================================================== */
+
+function makeBits(text){
+
+  const chars=
+    Array.from(text);
+
+
+  if(chars.length>25){
+
+    return null;
+
+  }
+
+
+  const bits=[];
+
+
+  /*
+    文字数 8bit
+  */
+
+  for(
+    let i=7;
+    i>=0;
+    i--
+  ){
+
+    bits.push(
+      (chars.length>>i)&1
+    );
+
+  }
+
+
+  /*
+    UTF-16 code unit
+
+    普通の日本語は
+    1文字=16bit
+  */
+
+  const units=[];
+
+  for(const ch of chars){
+
+    const code=
+      ch.charCodeAt(0);
+
+    units.push(code);
+
+  }
+
+
+  for(const code of units){
+
+    bits.push(
+      ...bits16(code)
+    );
+
+  }
+
+
+  /*
+    CRC
+
+    UTF-16 code unitを
+    2byteとして計算
+  */
+
+  const crcBytes=[];
+
+  for(const code of units){
+
+    crcBytes.push(
+      code>>8,
+      code&255
+    );
+
+  }
+
+
+  const crc=
+    crc16(crcBytes);
+
+
+  bits.push(
+    (crc>>8)&255,
+    crc&255
+  );
+
+
+  return bits;
+
+}
+
+
+/* =====================================================
+   ビットを13bitずつ
+   組み合わせに変換
+===================================================== */
+
+function encodeBits(bits){
+
+  const result=[];
+
+
+  /*
+    429bitにする
+  */
+
+  while(bits.length<429){
+
+    bits.push(0);
+
+  }
+
+
+  for(
+    let start=0;
+    start<429;
+    start+=13
+  ){
+
+    let value=0;
+
+    for(let j=0;j<13;j++){
+
+      value=
+        (value<<1)|
+        bits[start+j];
+
+    }
+
+
+    /*
+      valueは0〜8191
+
+      それを
+      16スロット中8個ON
+      のパターンにする。
+    */
+
+    result.push(
+      PATTERNS[value]
+    );
+
+  }
+
+
+  return result;
 
 }
 
@@ -809,7 +1169,7 @@ function drawShape(
     return `
       <rect
         x="${x-size/2}"
-        y="${y-size/2}"
+        y="${y-size*.31}"
         width="${size}"
         height="${size*.62}"
         rx="${size*.08}"
@@ -899,15 +1259,12 @@ function drawShape(
         d="
           M ${x-size*.48} ${y}
           Q ${x-size*.05} ${y-size*.55}
-            ${x+size*.48} ${y-size*.10}
-
+            ${x+size*.48} ${y-size*.1}
           Q ${x+size*.15} ${y+size*.38}
             ${x-size*.48} ${y}
           Z
         "
-
         fill="${color}"
-
         transform="
           rotate(
             ${rotation}
@@ -931,9 +1288,7 @@ function drawShape(
           L ${x+size/2} ${y+size/2}
           Z
         "
-
         fill="${color}"
-
         transform="
           rotate(
             ${rotation}
@@ -952,250 +1307,220 @@ function drawShape(
 
 
 /* =====================================================
-   UTF-8
+   大図形
 ===================================================== */
 
-function utf8(text){
+function drawLargeShapes(){
 
-  return Array.from(
-    new TextEncoder().encode(text)
-  );
+  let out="";
+
+  for(const s of LARGE_SHAPES){
+
+    out += drawShape(
+      s.type,
+      s.x,
+      s.y,
+      s.s,
+      s.color,
+      s.rot
+    );
+
+  }
+
+  return out;
 
 }
 
 
 /* =====================================================
-   CRC
+   小図形
+
+   ここがデータ本体。
+
+   528スロット
+   ↓
+   33グループ
+   ↓
+   各グループ16個中8個ON
+
+   だから毎回
+   「小図形の数」は同じ。
 ===================================================== */
 
-function crc16(bytes){
+function drawMicroShapes(patterns){
 
-  let crc=0xFFFF;
+  let out="";
 
-  for(const b of bytes){
 
-    crc ^= b;
+  for(
+    let group=0;
+    group<33;
+    group++
+  ){
 
-    for(let i=0;i<8;i++){
+    const mask=
+      patterns[group];
 
-      if(crc&1){
 
-        crc =
-          (crc>>1)^0xA001;
+    for(
+      let j=0;
+      j<16;
+      j++
+    ){
 
-      }else{
+      /*
+        0なら描かない
+        1なら描く
+      */
 
-        crc>>=1;
+      if(
+        !(mask&(1<<j))
+      ){
+
+        continue;
 
       }
+
+
+      const index=
+        group*16+j;
+
+
+      const s=
+        MICRO_SLOTS[index];
+
+
+      if(!s){
+
+        continue;
+
+      }
+
+
+      out += drawShape(
+        s.type===0
+          ? "circle"
+          : s.type===1
+          ? "triangle"
+          : s.type===2
+          ? "rect"
+          : "diamond",
+
+        s.x,
+        s.y,
+
+        s.size,
+
+        s.color,
+
+        s.rot
+      );
 
     }
 
   }
 
-  return crc&0xFFFF;
+
+  return out;
 
 }
 
 
 /* =====================================================
-   ビット列
+   ポテちゃん
 ===================================================== */
 
-function byteBits(n){
-
-  const a=[];
-
-  for(let i=7;i>=0;i--){
-
-    a.push(
-      (n>>i)&1
-    );
-
-  }
-
-  return a;
-
-}
-
-
-/* =====================================================
-   データ作成
-===================================================== */
-
-function makePayload(text){
-
-  const bytes=utf8(text);
-
-  /*
-    46スロットしかないため、
-    見た目を崩さないことを優先。
-
-    5byteまで。
-  */
-
-  if(bytes.length>5){
-
-    return null;
-
-  }
-
-
-  const data=[];
-
-
-  /*
-    3bit = UTF-8 byte length
-  */
-
-  for(let i=2;i>=0;i--){
-
-    data.push(
-      (bytes.length>>i)&1
-    );
-
-  }
-
-
-  /*
-    本文
-  */
-
-  for(const b of bytes){
-
-    data.push(
-      ...byteBits(b)
-    );
-
-  }
-
-
-  /*
-    CRC 16bit
-  */
-
-  const crc=crc16(bytes);
-
-  data.push(
-    ...byteBits(crc>>8),
-    ...byteBits(crc&255)
-  );
-
-
-  /*
-    61bit以上になる場合は
-    圧縮できないため短縮
-  */
-
-  return data.slice(
-    0,
-    SLOTS.length
-  );
-
-}
-
-
-/* =====================================================
-   データを見た目のいい配置にする
-===================================================== */
-
-/*
-   普通に
-
-   101001000100...
-
-   と置くと、文字によって
-   スカスカになってしまう。
-
-   そこで固定スロットを
-   「できるだけ同じ数の図形が
-   出るように」配置する。
-
-   位置そのものは変わらない。
-
-===================================================== */
-
-function balancedBits(bits,count){
-
-  const result =
-    new Array(count).fill(0);
-
-
-  /*
-    シードを作る
-  */
-
-  let seed=0;
-
-  for(let i=0;i<bits.length;i++){
-
-    seed =
-      (seed*31 + bits[i]+7) >>> 0;
-
-  }
-
-
-  /*
-    Fisher-Yates
-
-    スロットの順番だけ
-    決定的に変える。
-
-    座標は変わらない。
-  */
-
-  const order =
-    Array.from(
-      {length:count},
-      (_,i)=>i
-    );
-
-
-  for(let i=count-1;i>0;i--){
-
-    seed =
-      (Math.imul(
-        seed ^ (seed>>>16),
-        2246822519
-      ))>>>0;
-
-    const j =
-      seed%(i+1);
-
-    [
-      order[i],
-      order[j]
-    ]=[
-      order[j],
-      order[i]
-    ];
-
-  }
-
-
-  /*
-    元データをそのまま配置。
-
-    さらにデータ終了後は
-    見た目が極端に偏らないよう
-    シードで補助する。
-
-  */
-
-  for(
-    let i=0;
-    i<bits.length && i<count;
-    i++
-  ){
-
-    result[
-      order[i]
-    ]=bits[i];
-
-  }
-
-
-  return result;
+function drawPote(){
+
+  return `
+
+  <g>
+
+    <path
+      d="
+        M505 475
+
+        C460 468
+        424 498
+        416 546
+
+        C407 596
+        430 640
+        475 655
+
+        C521 670
+        574 649
+        589 604
+
+        C606 552
+        586 502
+        548 482
+
+        C534 475
+        519 473
+        505 475
+
+        Z
+      "
+      fill="#D88E32"
+    />
+
+
+    <path
+      d="
+        M454 511
+        C435 553
+        438 604
+        467 631
+      "
+      fill="none"
+      stroke="#C67C2C"
+      stroke-width="10"
+      stroke-linecap="round"
+      opacity=".2"
+    />
+
+
+    <circle
+      cx="470"
+      cy="553"
+      r="8"
+      fill="#6B532E"
+    />
+
+    <circle
+      cx="541"
+      cy="553"
+      r="8"
+      fill="#6B532E"
+    />
+
+    <circle
+      cx="506"
+      cy="575"
+      r="7"
+      fill="#75562B"
+    />
+
+    <circle
+      cx="444"
+      cy="590"
+      r="4"
+      fill="#B86E28"
+      opacity=".35"
+    />
+
+    <circle
+      cx="561"
+      cy="604"
+      r="4"
+      fill="#B86E28"
+      opacity=".35"
+    />
+
+  </g>
+
+  `;
 
 }
 
@@ -1209,8 +1534,10 @@ let currentSVG="";
 
 function generate(){
 
-  const text =
-    document.getElementById("text").value;
+  const text=
+    document
+      .getElementById("text")
+      .value;
 
 
   if(!text){
@@ -1224,24 +1551,14 @@ function generate(){
   }
 
 
-  const bytes=utf8(text);
+  const chars=
+    Array.from(text);
 
 
-  /*
-    この画像配置は
-    1つの図形=1bit。
-
-    見た目優先なので
-    5byteまで。
-  */
-
-  if(bytes.length>5){
+  if(chars.length>25){
 
     alert(
-      "このPOTE CODE配置では、\n" +
-      "見た目を保つためUTF-8で5バイトまでです。\n\n" +
-      "日本語は1文字で複数バイトを使うため、\n" +
-      "日本語だけの場合は少ない文字数になります。"
+      "25文字までです。"
     );
 
     return;
@@ -1249,60 +1566,37 @@ function generate(){
   }
 
 
-  const bits =
-    makePayload(text);
-
-
-  const visible =
-    balancedBits(
-      bits,
-      SLOTS.length
-    );
-
-
-  let shapes="";
-
-
   /*
-    ★ここ
-
-    visible[i] === 1
-       → 図形を表示
-
-    visible[i] === 0
-       → 完全に何も表示しない
-
-    座標はSLOTSから一切変更しない。
+    データ作成
   */
 
-  for(
-    let i=0;
-    i<SLOTS.length;
-    i++
-  ){
-
-    if(visible[i]!==1){
-
-      continue;
-
-    }
+  const bits=
+    makeBits(text);
 
 
-    const s=SLOTS[i];
+  if(!bits){
 
+    alert(
+      "この文字列は対応できません。"
+    );
 
-    shapes +=
-      drawShape(
-        s.shape,
-        s.x,
-        s.y,
-        s.size,
-        s.color,
-        s.rot
-      );
+    return;
 
   }
 
+
+  /*
+    13bitずつ
+    16個中8個ONへ
+  */
+
+  const patterns=
+    encodeBits(bits);
+
+
+  /*
+    SVG
+  */
 
   currentSVG=`
 
@@ -1311,7 +1605,7 @@ function generate(){
   viewBox="0 0 1034 1149"
   preserveAspectRatio="xMidYMid meet">
 
-  <!-- paper -->
+  <!-- background -->
 
   <rect
     x="0"
@@ -1324,23 +1618,37 @@ function generate(){
 
   <!--
     =========================================
-    FIXED DATA SHAPES
+    ORIGINAL REFERENCE STYLE
     =========================================
 
-    座標は参考画像から固定。
-
-    データによって
-    「表示 / 非表示」
-    だけが変わる。
-
+    大きな図形は固定。
   -->
 
-  ${shapes}
+  ${drawLargeShapes()}
 
 
   <!--
     =========================================
-    CENTRAL POTE
+    DATA SHAPES
+    =========================================
+
+    小図形だけがデータ。
+
+    位置固定。
+
+    ある = 1
+    ない = 0
+
+    各16個中8個だけ表示するため、
+    どのコードでも密度がほぼ完全に同じ。
+  -->
+
+  ${drawMicroShapes(patterns)}
+
+
+  <!--
+    =========================================
+    POTE-CHAN
     =========================================
   -->
 
@@ -1351,9 +1659,9 @@ function generate(){
 `;
 
 
-  document.getElementById(
-    "result"
-  ).innerHTML =
+  document
+    .getElementById("result")
+    .innerHTML=
     currentSVG;
 
 }
@@ -1376,7 +1684,7 @@ function saveSVG(){
   }
 
 
-  const blob =
+  const blob=
     new Blob(
       [currentSVG],
       {
@@ -1385,15 +1693,18 @@ function saveSVG(){
     );
 
 
-  const url =
+  const url=
     URL.createObjectURL(blob);
 
 
-  const a =
+  const a=
     document.createElement("a");
 
   a.href=url;
-  a.download="pote-code.svg";
+
+  a.download=
+    "pote-code.svg";
+
 
   document.body.appendChild(a);
 
@@ -1418,8 +1729,10 @@ document
 
       document
         .getElementById("counter")
-        .textContent =
-        [...this.value].length;
+        .textContent=
+        Array.from(
+          this.value
+        ).length;
 
     }
   );
