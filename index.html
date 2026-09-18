@@ -3,10 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>POTE CODE TEST</title>
+
+<title>POTE CODE</title>
 
 <style>
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box;
+}
 
 body{
   margin:0;
@@ -102,6 +105,15 @@ svg{
   color:#58734e;
   font-weight:700;
 }
+
+/* バージョン */
+.version{
+  margin-top:4px;
+  text-align:center;
+  font-size:9px;
+  opacity:.42;
+  letter-spacing:.08em;
+}
 </style>
 </head>
 
@@ -152,65 +164,55 @@ svg{
 
   </div>
 
+  <div class="version">
+    POTE CODE ver 1.1
+  </div>
+
 </div>
 
 
 <script>
 
-/*
-============================================================
- POTE CODE
-============================================================
+/* =========================================================
+   POTE CODE ver 1.1
 
-【データ】
+   30文字
+   UTF-16 480bit
+   文字数 5bit
+   CRC8 8bit
 
-図形の色       → データではない
-図形の種類     → データではない
-図形の大きさ   → データではない
+   合計 493bit
 
-図形が存在する → 1
-図形が存在しない → 0
+   32スロット × 17グループ
+   = 544スロット
 
+   各グループは必ず16個ON。
 
-【角度合わせマーク】
+   データ：
+   図形あり = 1
+   図形なし = 0
 
-3つの固定マークを追加。
-
-・左上
-・右上
-・下側
-
-この3点の位置関係から
-スキャナーが
-
- 位置
- 回転
- 大きさ
- 傾き
-
-を判断できるようにする。
-
-角度合わせマークは
-544個のデータスロットには含まれない。
+   色・図形種類・大きさはデータではない。
+========================================================= */
 
 
-============================================================
-*/
+/* =========================================================
+   基本
+========================================================= */
 
-
-const SVG =
+const SVG=
   document.getElementById("svg");
 
-const CENTER = 750;
+const CENTER=750;
+
+const SLOT_COUNT=544;
 
 
-/*
-------------------------------------------------------------
- 色
-------------------------------------------------------------
-*/
+/* =========================================================
+   色
+========================================================= */
 
-const COLORS = [
+const COLORS=[
   "#8AAA76",
   "#E1A83F",
   "#D78949",
@@ -220,91 +222,136 @@ const COLORS = [
 ];
 
 
-/*
-------------------------------------------------------------
- 固定乱数
-------------------------------------------------------------
-*/
+/* =========================================================
+   固定乱数
+========================================================= */
 
-let seed = 9283746;
+let seed=9283746;
 
 function random(){
 
-  seed =
-    (seed * 1664525 + 1013904223)
-    >>> 0;
+  seed=
+    (seed*1664525+1013904223)
+    >>>0;
 
-  return seed / 4294967296;
+  return seed/4294967296;
+
 }
 
 
-/*
-============================================================
- 544個の固定スロット
-============================================================
-*/
+/* =========================================================
+   固定スロット
 
-const SLOT_COUNT = 544;
+   円形に自然に散らす。
+   マーク部分を避ける。
+========================================================= */
 
-const slots = [];
-
+const DATA_SLOTS=[];
 
 function createSlots(){
 
-  seed = 9283746;
+  seed=9283746;
 
-  const result = [];
+  const result=[];
 
-  const MIN_R = 150;
-  const MAX_R = 675;
+  const MIN_R=175;
 
-  const MIN_DISTANCE = 31;
+  const MAX_R=640;
 
-  let safety = 0;
+  const MIN_DISTANCE=35;
+
+  let safety=0;
+
 
   while(
-    result.length < SLOT_COUNT &&
-    safety < 300000
+    result.length<SLOT_COUNT &&
+    safety<1000000
   ){
 
     safety++;
 
-    const r =
+
+    const r=
       Math.sqrt(
-        random() *
+        random()*
         (
-          MAX_R*MAX_R -
+          MAX_R*MAX_R-
           MIN_R*MIN_R
-        ) +
+        )+
         MIN_R*MIN_R
       );
 
-    const angle =
-      random() *
-      Math.PI * 2;
 
-    const x =
-      CENTER +
+    const angle=
+      random()*Math.PI*2;
+
+
+    const x=
+      CENTER+
       Math.cos(angle)*r;
 
-    const y =
-      CENTER +
+
+    const y=
+      CENTER+
       Math.sin(angle)*r;
 
 
-    let ok = true;
+    let ok=true;
 
-    for(const p of result){
+
+    for(
+      const p of result
+    ){
 
       const dx=x-p.x;
+
       const dy=y-p.y;
 
+
       if(
-        dx*dx+dy*dy <
+        dx*dx+
+        dy*dy<
         MIN_DISTANCE*MIN_DISTANCE
       ){
 
         ok=false;
+
+        break;
+
+      }
+
+    }
+
+
+    /*
+      3つの角度合わせマークの
+      周辺を空ける。
+    */
+
+    const marks=[
+      {x:255,y:275},
+      {x:1245,y:275},
+      {x:255,y:1245}
+    ];
+
+
+    for(
+      const m of marks
+    ){
+
+      const dx=x-m.x;
+
+      const dy=y-m.y;
+
+
+      if(
+        dx*dx+
+        dy*dy<
+        90*90
+      ){
+
+        ok=false;
+
         break;
 
       }
@@ -314,7 +361,10 @@ function createSlots(){
 
     if(ok){
 
-      result.push({x,y});
+      result.push({
+        x,
+        y
+      });
 
     }
 
@@ -326,25 +376,30 @@ function createSlots(){
 }
 
 
-const DATA_SLOTS =
-  createSlots();
+DATA_SLOTS.push(
+  ...createSlots()
+);
 
 
-/*
-============================================================
- SVG helper
-============================================================
-*/
+/* =========================================================
+   SVG
+========================================================= */
 
-function el(name,attrs={}){
+function el(
+  name,
+  attrs={}
+){
 
-  const e =
+  const e=
     document.createElementNS(
       "http://www.w3.org/2000/svg",
       name
     );
 
-  for(const key in attrs){
+
+  for(
+    const key in attrs
+  ){
 
     e.setAttribute(
       key,
@@ -353,29 +408,38 @@ function el(name,attrs={}){
 
   }
 
+
   return e;
 
 }
 
 
-/*
-============================================================
- データ
-============================================================
-*/
+/* =========================================================
+   文字 → bits
+========================================================= */
 
 function textBits(text){
 
   const bits=[];
 
-  for(let i=0;i<30;i++){
 
-    const code =
+  for(
+    let i=0;
+    i<30;
+    i++
+  ){
+
+    const code=
       i<text.length
-      ? text.charCodeAt(i)
-      : 0;
+      ?text.charCodeAt(i)
+      :0;
 
-    for(let b=15;b>=0;b--){
+
+    for(
+      let b=15;
+      b>=0;
+      b--
+    ){
 
       bits.push(
         (code>>b)&1
@@ -385,99 +449,116 @@ function textBits(text){
 
   }
 
+
   return bits;
 
 }
 
 
-/*
-------------------------------------------------------------
- CRC8
-------------------------------------------------------------
-*/
+/* =========================================================
+   CRC8
+========================================================= */
 
 function crc8(bits){
 
   let crc=0;
 
-  for(const bit of bits){
 
-    const mix =
+  for(
+    const bit of bits
+  ){
+
+    const mix=
       ((crc>>7)&1)^bit;
 
-    crc =
-      ((crc<<1)&255);
+
+    crc=
+      (crc<<1)&255;
+
 
     if(mix){
 
-      crc ^= 0x07;
+      crc^=0x07;
 
     }
 
   }
+
 
   return crc;
 
 }
 
 
-/*
-------------------------------------------------------------
- bits → 数値
-------------------------------------------------------------
-*/
+/* =========================================================
+   bits → number
+========================================================= */
 
 function bitsToNumber(bits){
 
   let n=0;
 
-  for(const b of bits){
 
-    n =
-      n*2+b;
+  for(
+    const b of bits
+  ){
+
+    n=n*2+b;
 
   }
+
 
   return n;
 
 }
 
 
-/*
-------------------------------------------------------------
- 組み合わせ数
-------------------------------------------------------------
-*/
+/* =========================================================
+   組み合わせ
+========================================================= */
 
 function C(n,k){
 
-  if(k<0 || k>n){
+  if(
+    k<0||
+    k>n
+  ){
 
     return 0;
 
   }
 
-  k=Math.min(k,n-k);
+
+  k=
+    Math.min(
+      k,
+      n-k
+    );
+
 
   let r=1;
 
-  for(let i=1;i<=k;i++){
 
-    r =
+  for(
+    let i=1;
+    i<=k;
+    i++
+  ){
+
+    r=
       r*(n-k+i)/i;
 
   }
+
 
   return Math.round(r);
 
 }
 
 
-/*
-------------------------------------------------------------
- 29bit → 32スロット
-------------------------------------------------------------
-*/
+/* =========================================================
+   29bit → 32スロット
+========================================================= */
 
 function unrank(rank){
 
@@ -488,18 +569,27 @@ function unrank(rank){
   let r=rank;
 
 
-  for(let i=0;i<32;i++){
+  for(
+    let i=0;
+    i<32;
+    i++
+  ){
 
     if(ones===0){
 
       bits.push(0);
+
       continue;
 
     }
 
-    if(ones===32-i){
+
+    if(
+      ones===32-i
+    ){
 
       bits.push(1);
+
       ones--;
 
       continue;
@@ -507,22 +597,25 @@ function unrank(rank){
     }
 
 
-    const zeroCount =
+    const zeroCount=
       C(
         31-i,
         ones
       );
 
 
-    if(r < zeroCount){
+    if(
+      r<zeroCount
+    ){
 
       bits.push(0);
 
-    }else{
+    }
+    else{
 
       bits.push(1);
 
-      r -= zeroCount;
+      r-=zeroCount;
 
       ones--;
 
@@ -536,24 +629,28 @@ function unrank(rank){
 }
 
 
-/*
-============================================================
- データパケット
-============================================================
-*/
+/* =========================================================
+   パケット
+========================================================= */
 
 function makePacket(text){
 
-  const length =
-    text.length;
-
-  const body =
+  const body=
     textBits(text);
+
 
   const bits=[];
 
 
-  for(let i=4;i>=0;i--){
+  const length=
+    text.length;
+
+
+  for(
+    let i=4;
+    i>=0;
+    i--
+  ){
 
     bits.push(
       (length>>i)&1
@@ -565,11 +662,15 @@ function makePacket(text){
   bits.push(...body);
 
 
-  const crc =
+  const crc=
     crc8(body);
 
 
-  for(let i=7;i>=0;i--){
+  for(
+    let i=7;
+    i>=0;
+    i--
+  ){
 
     bits.push(
       (crc>>i)&1
@@ -583,16 +684,15 @@ function makePacket(text){
 }
 
 
-/*
-============================================================
- 493bit → 544スロット
-============================================================
-*/
+/* =========================================================
+   encode
+========================================================= */
 
 function encode(text){
 
-  const packet =
+  const packet=
     makePacket(text);
+
 
   const groups=[];
 
@@ -603,21 +703,23 @@ function encode(text){
     g++
   ){
 
-    const chunk =
+    const chunk=
       packet.slice(
         g*29,
         g*29+29
       );
 
 
-    while(chunk.length<29){
+    while(
+      chunk.length<29
+    ){
 
       chunk.push(0);
 
     }
 
 
-    const value =
+    const value=
       bitsToNumber(chunk);
 
 
@@ -633,14 +735,13 @@ function encode(text){
 }
 
 
-/*
-============================================================
- データ図形
-============================================================
-*/
+/* =========================================================
+   図形
+========================================================= */
 
 function drawShape(
-  x,y,
+  x,
+  y,
   size,
   type,
   color
@@ -651,83 +752,83 @@ function drawShape(
 
   if(type===0){
 
-    shape =
-      el("circle",{
-        cx:x,
-        cy:y,
-        r:size,
-        fill:color
-      });
+    shape=
+      el(
+        "circle",
+        {
+          cx:x,
+          cy:y,
+          r:size,
+          fill:color
+        }
+      );
 
   }
-
 
   else if(type===1){
 
-    shape =
-      el("rect",{
-        x:x-size,
-        y:y-size,
-        width:size*2,
-        height:size*2,
-        rx:size*.35,
-        fill:color
-      });
+    shape=
+      el(
+        "rect",
+        {
+          x:x-size,
+          y:y-size*.82,
+          width:size*2,
+          height:size*1.64,
+          rx:size*.45,
+          fill:color
+        }
+      );
 
   }
-
 
   else if(type===2){
 
-    shape =
-      el("polygon",{
-
-        points:
-          `${x},${y-size*1.15} `+
-          `${x+size},${y+size*.8} `+
-          `${x-size},${y+size*.8}`,
-
-        fill:color
-
-      });
+    shape=
+      el(
+        "polygon",
+        {
+          points:
+            `${x},${y-size*1.15} `+
+            `${x+size},${y+size*.75} `+
+            `${x-size},${y+size*.75}`,
+          fill:color
+        }
+      );
 
   }
-
 
   else if(type===3){
 
-    shape =
-      el("polygon",{
-
-        points:
-          `${x},${y-size} `+
-          `${x+size},${y} `+
-          `${x},${y+size} `+
-          `${x-size},${y}`,
-
-        fill:color
-
-      });
+    shape=
+      el(
+        "polygon",
+        {
+          points:
+            `${x},${y-size} `+
+            `${x+size},${y} `+
+            `${x},${y+size} `+
+            `${x-size},${y}`,
+          fill:color
+        }
+      );
 
   }
 
-
   else{
 
-    shape =
-      el("rect",{
-
-        x:x-size*1.35,
-        y:y-size*.65,
-
-        width:size*2.7,
-        height:size*1.3,
-
-        rx:size*.35,
-
-        fill:color
-
-      });
+    shape=
+      el(
+        "rect",
+        {
+          x:x-size*1.3,
+          y:y-size*.62,
+          width:size*2.6,
+          height:size*1.24,
+          rx:size*.45,
+          fill:color
+        }
+      );
 
   }
 
@@ -737,107 +838,102 @@ function drawShape(
 }
 
 
-/*
-============================================================
- 角度合わせマーク
-============================================================
+/* =========================================================
+   角度合わせマーク
 
-QRの四角いファインダーパターンではなく、
+   配置：
 
-「POTE CODEの装飾図形」
+   O                 O
 
-として見える3点。
 
-位置関係は固定。
+   O
 
-この3点だけをスキャナーが
-基準点として使用する。
-============================================================
-*/
+   すべて円の中。
+========================================================= */
 
 function drawAlignmentMark(
   x,
-  y,
-  scale,
-  rotation,
-  color1,
-  color2
+  y
 ){
 
-  const g =
-    el("g",{
-      transform:
-        `translate(${x} ${y}) `+
-        `rotate(${rotation})`
-    });
+  const g=
+    el(
+      "g",
+      {
+        "data-alignment":"true"
+      }
+    );
+
 
   /*
-    大きめの有機的な丸
+    外側リング
   */
 
   g.appendChild(
-    el("circle",{
-      cx:0,
-      cy:0,
-      r:scale,
-      fill:color1
-    })
+    el(
+      "circle",
+      {
+        cx:x,
+        cy:y,
+        r:38,
+        fill:"#FFFDF5",
+        stroke:"#51483F",
+        "stroke-width":"7"
+      }
+    )
   );
 
 
   /*
-    内側の小さな丸
-
-    完全なQRパターンにはしない。
+    内側リング
   */
 
   g.appendChild(
-    el("circle",{
-      cx:scale*.05,
-      cy:scale*.05,
-      r:scale*.32,
-      fill:color2,
-      opacity:.95
-    })
+    el(
+      "circle",
+      {
+        cx:x,
+        cy:y,
+        r:18,
+        fill:"none",
+        stroke:"#51483F",
+        "stroke-width":"6"
+      }
+    )
   );
 
 
   /*
-    ちょっとずらした小粒
-
-    「マーク」感を弱めて
-    周囲の装飾に馴染ませる。
+    中央点
   */
 
   g.appendChild(
-    el("circle",{
-      cx:scale*.78,
-      cy:scale*.55,
-      r:scale*.16,
-      fill:color2,
-      opacity:.9
-    })
+    el(
+      "circle",
+      {
+        cx:x,
+        cy:y,
+        r:5,
+        fill:"#51483F"
+      }
+    )
   );
 
 
-  g.dataset.alignment =
-    "true";
-
-
-  return g;
+  SVG.appendChild(g);
 
 }
 
 
-/*
-============================================================
- POTE CODE本体
-============================================================
-*/
+/* =========================================================
+   POTE CODE
+========================================================= */
 
 function drawCode(text){
 
-  while(SVG.firstChild){
+  while(
+    SVG.firstChild
+  ){
 
     SVG.removeChild(
       SVG.firstChild
@@ -847,29 +943,28 @@ function drawCode(text){
 
 
   /*
-  ----------------------------------------------------------
-   背景
-  ----------------------------------------------------------
+    背景
   */
 
   SVG.appendChild(
-    el("rect",{
-      x:0,
-      y:0,
-      width:1500,
-      height:1500,
-      fill:"#FFFDF5"
-    })
+    el(
+      "rect",
+      {
+        x:0,
+        y:0,
+        width:1500,
+        height:1500,
+        fill:"#FFFDF5"
+      }
+    )
   );
 
 
   /*
-  ----------------------------------------------------------
-   データ
-  ----------------------------------------------------------
+    データ
   */
 
-  const bits =
+  const bits=
     encode(text);
 
 
@@ -892,61 +987,46 @@ function drawCode(text){
     onCount++;
 
 
-    const p =
+    const p=
       DATA_SLOTS[i];
 
 
-    /*
-      形は固定
-    */
-
-    const type =
+    const type=
       i%5;
 
-
-    /*
-      サイズは固定
-    */
 
     let size;
 
 
     if(i%23===0){
 
-      size=22;
+      size=15;
 
     }
-
     else if(i%13===0){
 
-      size=18;
+      size=13;
 
     }
-
     else if(i%7===0){
 
-      size=14;
+      size=12;
 
     }
-
     else{
 
-      size=9+(i%4);
+      size=9+(i%3);
 
     }
 
 
-    /*
-      色は固定
-    */
-
-    const color =
+    const color=
       COLORS[
         (i*7)%COLORS.length
       ];
 
 
-    const shape =
+    const shape=
       drawShape(
         p.x,
         p.y,
@@ -957,6 +1037,7 @@ function drawCode(text){
 
 
     shape.dataset.slot=i;
+
     shape.dataset.bit="1";
 
 
@@ -966,166 +1047,109 @@ function drawCode(text){
 
 
   /*
-  ========================================================
-   3つの角度合わせマーク
-  ========================================================
+    =======================================================
+    3つの角度合わせマーク
+    =======================================================
   */
+
+  drawAlignmentMark(
+    255,
+    275
+  );
+
+
+  drawAlignmentMark(
+    1245,
+    275
+  );
+
+
+  drawAlignmentMark(
+    255,
+    1245
+  );
+
 
   /*
-    左上
+    中央POTEマーク
   */
 
-  SVG.appendChild(
-    drawAlignmentMark(
-      235,
-      350,
-      30,
-      -18,
-      "#759B70",
-      "#E1A83F"
+  const pote=
+    el(
+      "g",
+      {
+        "data-fixed":"pote-mark"
+      }
+    );
+
+
+  pote.appendChild(
+    el(
+      "circle",
+      {
+        cx:750,
+        cy:750,
+        r:78,
+        fill:"#D99A3D"
+      }
     )
   );
 
 
-  /*
-    右上
-
-    左上とは少し形の雰囲気を変えるが
-    中心位置は完全固定。
-  */
-
-  SVG.appendChild(
-    drawAlignmentMark(
-      1265,
-      350,
-      30,
-      18,
-      "#D78949",
-      "#8AAA76"
+  pote.appendChild(
+    el(
+      "path",
+      {
+        d:
+          "M704 708 Q682 750 704 792",
+        fill:"none",
+        stroke:"#C88340",
+        "stroke-width":"7",
+        "stroke-linecap":"round",
+        opacity:.65
+      }
     )
   );
 
 
-  /*
-    下側
-
-    3点目。
-  */
-
-  SVG.appendChild(
-    drawAlignmentMark(
-      750,
-      1270,
-      30,
-      0,
-      "#5D9099",
-      "#E1A83F"
+  pote.appendChild(
+    el(
+      "circle",
+      {
+        cx:724,
+        cy:742,
+        r:7,
+        fill:"#51483F"
+      }
     )
   );
 
 
-  /*
-  ========================================================
-   中央ポテちゃん
-  ========================================================
-  */
-
-  const pote =
-    el("g",{
-      "data-fixed":"pote-mark"
-    });
-
-
-  /*
-    本体
-  */
-
   pote.appendChild(
-    el("circle",{
-      cx:750,
-      cy:750,
-      r:88,
-      fill:"#D99A3D"
-    })
+    el(
+      "circle",
+      {
+        cx:776,
+        cy:742,
+        r:7,
+        fill:"#51483F"
+      }
+    )
   );
 
 
-  /*
-    じゃがいもの陰
-  */
-
   pote.appendChild(
-    el("path",{
-      d:"M695 700 Q672 750 695 800",
-      fill:"none",
-      stroke:"#C88340",
-      "stroke-width":"8",
-      "stroke-linecap":"round",
-      opacity:.65
-    })
-  );
-
-
-  /*
-    目
-  */
-
-  pote.appendChild(
-    el("circle",{
-      cx:722,
-      cy:742,
-      r:8,
-      fill:"#51483F"
-    })
-  );
-
-  pote.appendChild(
-    el("circle",{
-      cx:778,
-      cy:742,
-      r:8,
-      fill:"#51483F"
-    })
-  );
-
-
-  /*
-    ほっぺ
-  */
-
-  pote.appendChild(
-    el("circle",{
-      cx:705,
-      cy:776,
-      r:9,
-      fill:"#C98242",
-      opacity:.7
-    })
-  );
-
-  pote.appendChild(
-    el("circle",{
-      cx:795,
-      cy:776,
-      r:9,
-      fill:"#C98242",
-      opacity:.7
-    })
-  );
-
-
-  /*
-    口
-  */
-
-  pote.appendChild(
-    el("path",{
-      d:"M734 765 Q750 780 766 765",
-      fill:"none",
-      stroke:"#51483F",
-      "stroke-width":"6",
-      "stroke-linecap":"round"
-    })
+    el(
+      "path",
+      {
+        d:
+          "M736 766 Q750 778 764 766",
+        fill:"none",
+        stroke:"#51483F",
+        "stroke-width":"5",
+        "stroke-linecap":"round"
+      }
+    )
   );
 
 
@@ -1133,80 +1157,60 @@ function drawCode(text){
 
 
   /*
-  ========================================================
-   外周のごく薄い円
-  ========================================================
+    外周
   */
 
   SVG.appendChild(
-    el("circle",{
-      cx:750,
-      cy:750,
-      r:680,
-      fill:"none",
-      stroke:"#D7CAB0",
-      "stroke-width":"2",
-      opacity:.3
-    })
+    el(
+      "circle",
+      {
+        cx:750,
+        cy:750,
+        r:680,
+        fill:"none",
+        stroke:"#D7CAB0",
+        "stroke-width":"2",
+        opacity:.3
+      }
+    )
   );
 
 
-  /*
-  ========================================================
-   情報
-  ========================================================
-  */
-
-  document.getElementById("info").innerHTML =
+  document.getElementById("info").innerHTML=
     `文字数：${text.length} / 30<br>`+
     `固定スロット：544個<br>`+
     `表示図形：${onCount}個 / 544個<br>`+
-    `角度合わせマーク：3個<br>`+
-    `データ判定：<b>図形の「ある・ない」のみ</b>`;
+    `データ判定：図形の「ある・ない」のみ`;
 
 
-  document.getElementById("test").innerHTML =
+  document.getElementById("test").innerHTML=
     `<span class="good">✓ POTE CODE生成成功</span><br>`+
-    `3つの角度合わせマークを固定配置しています。<br>`+
     `色・図形種類・大きさはデータ判定に使用していません。`;
 
 }
 
 
-/*
-============================================================
- サンプル
-============================================================
-*/
+/* =========================================================
+   サンプル
+========================================================= */
 
 function sample(){
 
   const samples=[
-
     "ポテちゃん",
-
     "ポテちゃん大冒険",
-
     "こんにちはポテちゃん！",
-
     "POTE CODE",
-
     "POTE CODE 2026",
-
     "森のカフェへようこそ",
-
     "ポテちゃんの世界",
-
     "ゲームを作っています",
-
     "1234567890 ABCDEFGHI",
-
     "ポテゲーム研究部"
-
   ];
 
 
-  const value =
+  const value=
     samples[
       Math.floor(
         Math.random()*samples.length
@@ -1214,8 +1218,8 @@ function sample(){
     ];
 
 
-  document.getElementById("text")
-    .value=value;
+  document.getElementById("text").value=
+    value;
 
 
   generate();
@@ -1223,22 +1227,21 @@ function sample(){
 }
 
 
-/*
-============================================================
- 生成
-============================================================
-*/
+/* =========================================================
+   生成
+========================================================= */
 
 function generate(){
 
-  const text =
-    document.getElementById("text")
-      .value;
+  const text=
+    document.getElementById("text").value;
 
 
   if(!text){
 
-    alert("文字を入力してください。");
+    alert(
+      "文字を入力してください。"
+    );
 
     return;
 
@@ -1256,16 +1259,25 @@ function generate(){
   }
 
 
+  if(DATA_SLOTS.length<SLOT_COUNT){
+
+    alert(
+      "スロット生成に失敗しました。"
+    );
+
+    return;
+
+  }
+
+
   drawCode(text);
 
 }
 
 
-/*
-============================================================
- 初期表示
-============================================================
-*/
+/* =========================================================
+   初期表示
+========================================================= */
 
 generate();
 
