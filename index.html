@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>POTE CODE Generator</title>
+<title>POTE CODE Generator v2.2</title>
 
 <style>
 *{
@@ -109,6 +109,14 @@ svg{
   min-height:20px;
 }
 
+.info{
+  margin-top:8px;
+  text-align:center;
+  font-size:10px;
+  opacity:.5;
+  line-height:1.5;
+}
+
 .ver{
   text-align:center;
   margin-top:14px;
@@ -153,10 +161,14 @@ POTE CODEを生成
 
 <div id="status" class="status"></div>
 
+<div class="info">
+UTF-8最大60バイトまで
+</div>
+
 </div>
 
 <div class="ver">
-POTE CODE ver 2.1
+POTE CODE ver 2.2
 </div>
 
 </div>
@@ -165,27 +177,17 @@ POTE CODE ver 2.1
 <script>
 
 /* =========================================================
-   POTE CODE 基本仕様
+   POTE CODE v2.2
+========================================================= */
+
+
+/* =========================================================
+   共通仕様
 ========================================================= */
 
 const SIZE = 1500;
 
 const CENTER = 750;
-
-
-/*
-  データ構造
-
-  493bit
-  ↓
-  17グループ × 29bit
-  ↓
-  各グループを32スロットへ変換
-  ↓
-  32スロット中16個ON
-  ↓
-  合計544スロット
-*/
 
 const PACKET_BITS = 493;
 
@@ -195,29 +197,29 @@ const GROUP_COUNT = 17;
 
 const SLOT_BITS = 544;
 
+const MAX_UTF8_BYTES = 60;
+
+const MAX_CHARS = 30;
+
 
 /*
-  30文字 × 16bit
-  = 480bit
+  493bit
 
-  文字数5bit
-  = 5bit
-
-  CRC8
-  = 8bit
+  5bit  : 文字数
+  480bit: UTF-8データ領域
+  8bit  : CRC
 
   合計493bit
+
+  493 / 29 = 17
 */
-
-
-const MAX_TEXT_CHARS = 30;
 
 
 /* =========================================================
    スロット設定
 ========================================================= */
 
-const SLOT_COUNT = SLOT_BITS;
+const SLOT_COUNT = 544;
 
 const MIN_R = 175;
 
@@ -267,145 +269,23 @@ function random(){
 
 
 /* =========================================================
-   UTF-8変換
+   UTF-8
 ========================================================= */
 
-/*
-  文字列
-  ↓
-  UTF-8
-  ↓
-  Uint8Array
-*/
-
-function textToUTF8(text){
+function encodeUTF8(text){
 
   return new TextEncoder().encode(text);
 
 }
 
 
-/*
-  UTF-8
-  ↓
-  文字列
-*/
-
-function utf8ToText(bytes){
-
-  return new TextDecoder(
-    "utf-8",
-    {
-      fatal:true
-    }
-  ).decode(bytes);
-
-}
-
-
 /* =========================================================
-   文字数チェック
+   文字数
 ========================================================= */
 
-function getCharacterCount(text){
+function characterCount(text){
 
   return Array.from(text).length;
-
-}
-
-
-/* =========================================================
-   UTF-8を固定領域へ変換
-========================================================= */
-
-/*
-  現在の493bit構造では、
-
-  文字数
-  5bit
-
-  データ
-  480bit
-
-  CRC
-  8bit
-
-  という構造を維持する。
-
-  UTF-8化すると1文字あたりの
-  バイト数が可変になるため、
-
-  30文字 × 16bit
-
-  の旧方式をそのまま使うのではなく、
-
-  UTF-8バイト列を16bit単位で格納する。
-
-  最大30文字でUTF-8が480bit以内の場合に
-  そのまま格納できる。
-
-  それを超える場合は生成を停止する。
-*/
-
-
-function makeUTF8Body(text){
-
-  const bytes =
-    textToUTF8(text);
-
-
-  /*
-    480bit = 60byte
-  */
-
-  const MAX_BYTES = 60;
-
-
-  if(bytes.length > MAX_BYTES){
-
-    throw new Error(
-      "UTF-8データが60バイトを超えています"
-    );
-
-  }
-
-
-  const bodyBytes =
-    new Uint8Array(MAX_BYTES);
-
-
-  bodyBytes.set(bytes);
-
-
-  const bits=[];
-
-
-  for(
-    let i=0;
-    i<bodyBytes.length;
-    i++
-  ){
-
-    const value =
-      bodyBytes[i];
-
-
-    for(
-      let b=7;
-      b>=0;
-      b--
-    ){
-
-      bits.push(
-        (value >> b) & 1
-      );
-
-    }
-
-  }
-
-
-  return bits;
 
 }
 
@@ -416,20 +296,15 @@ function makeUTF8Body(text){
 
 function crc8(bits){
 
-  let crc=0;
+  let crc = 0;
 
-
-  for(
-    const bit of bits
-  ){
+  for(const bit of bits){
 
     const mix =
       ((crc >> 7) & 1) ^ bit;
 
-
     crc =
       (crc << 1) & 255;
-
 
     if(mix){
 
@@ -439,125 +314,29 @@ function crc8(bits){
 
   }
 
-
   return crc;
 
 }
 
 
 /* =========================================================
-   パケット作成
-========================================================= */
-
-function makePacket(text){
-
-  const body =
-    makeUTF8Body(text);
-
-
-  /*
-    文字数を5bit
-  */
-
-  const lengthBits=[];
-
-
-  const characterCount =
-    getCharacterCount(text);
-
-
-  for(
-    let b=4;
-    b>=0;
-    b--
-  ){
-
-    lengthBits.push(
-      (characterCount >> b) & 1
-    );
-
-  }
-
-
-  /*
-    CRC
-  */
-
-  const crc =
-    crc8(body);
-
-
-  const crcBits=[];
-
-
-  for(
-    let b=7;
-    b>=0;
-    b--
-  ){
-
-    crcBits.push(
-      (crc >> b) & 1
-    );
-
-  }
-
-
-  const packet = [
-    ...lengthBits,
-    ...body,
-    ...crcBits
-  ];
-
-
-  /*
-    念のため493bitを確認
-  */
-
-  if(
-    packet.length !== PACKET_BITS
-  ){
-
-    throw new Error(
-      "パケット長が493bitではありません"
-    );
-
-  }
-
-
-  return packet;
-
-}
-
-
-/* =========================================================
-   組み合わせ計算
+   組み合わせ
 ========================================================= */
 
 function C(n,k){
 
-  if(
-    k<0 ||
-    k>n
-  ){
+  if(k < 0 || k > n){
 
     return 0;
 
   }
 
-
   k =
     Math.min(k,n-k);
 
+  let result = 1;
 
-  let result=1;
-
-
-  for(
-    let i=1;
-    i<=k;
-    i++
-  ){
+  for(let i=1;i<=k;i++){
 
     result =
       result *
@@ -566,72 +345,41 @@ function C(n,k){
 
   }
 
-
   return Math.round(result);
 
 }
 
 
 /* =========================================================
-   bit → 数値
+   bits → number
 ========================================================= */
 
 function bitsToNumber(bits){
 
-  let n=0;
+  let value = 0;
 
+  for(const bit of bits){
 
-  for(
-    const bit of bits
-  ){
-
-    n =
-      n*2+
+    value =
+      value * 2 +
       bit;
 
   }
 
-
-  return n;
+  return value;
 
 }
 
 
 /* =========================================================
-   数値 → 32bit
-   16個ON
+   29bit → 32bit / 16ON
 ========================================================= */
 
 function unrank(rank){
 
-  const bits=[];
-
-  let ones=16;
-
-  let r=rank;
-
-
-  /*
-    29bit最大値
-
-    2^29 - 1
-
-    536870911
-
-    32C16
-
-    601080390
-
-    より小さいので、
-
-    29bit全域を安全に
-    16/32パターンへ変換できる。
-  */
-
-
   if(
-    rank<0 ||
-    rank>=Math.pow(2,29)
+    rank < 0 ||
+    rank >= Math.pow(2,29)
   ){
 
     throw new Error(
@@ -640,31 +388,29 @@ function unrank(rank){
 
   }
 
+  const result = [];
 
-  for(
-    let i=0;
-    i<32;
-    i++
-  ){
+  let remaining = 16;
 
-    if(
-      ones===0
-    ){
+  let r = rank;
 
-      bits.push(0);
+
+  for(let i=0;i<32;i++){
+
+    if(remaining === 0){
+
+      result.push(0);
 
       continue;
 
     }
 
 
-    if(
-      ones===32-i
-    ){
+    if(remaining === 32-i){
 
-      bits.push(1);
+      result.push(1);
 
-      ones--;
+      remaining--;
 
       continue;
 
@@ -674,60 +420,174 @@ function unrank(rank){
     const zeroCount =
       C(
         31-i,
-        ones
+        remaining
       );
 
 
-    if(
-      r<zeroCount
-    ){
+    if(r < zeroCount){
 
-      bits.push(0);
+      result.push(0);
 
     }
     else{
 
-      bits.push(1);
+      result.push(1);
 
       r -= zeroCount;
 
-      ones--;
+      remaining--;
 
     }
 
   }
 
 
-  /*
-    必ず16個ON
-  */
-
-  let count=0;
-
-
-  for(
-    const bit of bits
+  if(
+    result.filter(v=>v===1).length !== 16
   ){
 
-    if(bit===1){
-
-      count++;
-
-    }
-
-  }
-
-
-  if(count!==16){
-
     throw new Error(
-      "16/32変換に失敗しました"
+      "16/32変換エラー"
     );
 
   }
 
 
+  return result;
+
+}
+
+
+/* =========================================================
+   UTF-8 body
+========================================================= */
+
+function makeBody(text){
+
+  const bytes =
+    encodeUTF8(text);
+
+
+  if(
+    bytes.length >
+    MAX_UTF8_BYTES
+  ){
+
+    throw new Error(
+      "UTF-8データが60バイトを超えています"
+    );
+
+  }
+
+
+  const padded =
+    new Uint8Array(
+      MAX_UTF8_BYTES
+    );
+
+
+  padded.set(bytes);
+
+
+  const bits=[];
+
+
+  for(
+    let i=0;
+    i<padded.length;
+    i++
+  ){
+
+    for(
+      let b=7;
+      b>=0;
+      b--
+    ){
+
+      bits.push(
+        (padded[i] >> b) & 1
+      );
+
+    }
+
+  }
+
+
   return bits;
+
+}
+
+
+/* =========================================================
+   パケット
+========================================================= */
+
+function makePacket(text){
+
+  const count =
+    characterCount(text);
+
+
+  if(count > MAX_CHARS){
+
+    throw new Error(
+      "30文字を超えています"
+    );
+
+  }
+
+
+  const body =
+    makeBody(text);
+
+
+  const lengthBits=[];
+
+
+  for(let b=4;b>=0;b--){
+
+    lengthBits.push(
+      (count >> b) & 1
+    );
+
+  }
+
+
+  const crc =
+    crc8(body);
+
+
+  const crcBits=[];
+
+
+  for(let b=7;b>=0;b--){
+
+    crcBits.push(
+      (crc >> b) & 1
+    );
+
+  }
+
+
+  const packet=[
+    ...lengthBits,
+    ...body,
+    ...crcBits
+  ];
+
+
+  if(
+    packet.length !== PACKET_BITS
+  ){
+
+    throw new Error(
+      "493bitパケットになっていません"
+    );
+
+  }
+
+
+  return packet;
 
 }
 
@@ -751,37 +611,16 @@ function encode(text){
     group++
   ){
 
-    const chunk=[];
-
-
-    for(
-      let i=0;
-      i<GROUP_BITS;
-      i++
-    ){
-
-      const index =
-        group*GROUP_BITS+i;
-
-
-      chunk.push(
-        packet[index] || 0
+    const chunk =
+      packet.slice(
+        group * GROUP_BITS,
+        group * GROUP_BITS + GROUP_BITS
       );
 
-    }
-
-
-    /*
-      29bit → 数値
-    */
 
     const value =
       bitsToNumber(chunk);
 
-
-    /*
-      29bit → 32スロット
-    */
 
     const groupBits =
       unrank(value);
@@ -794,17 +633,12 @@ function encode(text){
   }
 
 
-  /*
-    17 × 32
-    = 544
-  */
-
   if(
     output.length !== SLOT_BITS
   ){
 
     throw new Error(
-      "スロット数が544ではありません"
+      "544bitになっていません"
     );
 
   }
@@ -816,31 +650,24 @@ function encode(text){
 
 
 /* =========================================================
-   図形種類
+   図形
 ========================================================= */
 
 function getShape(i){
 
   let size;
 
-
-  if(
-    i%23===0
-  ){
+  if(i % 23 === 0){
 
     size=18;
 
   }
-  else if(
-    i%13===0
-  ){
+  else if(i % 13 === 0){
 
     size=16;
 
   }
-  else if(
-    i%7===0
-  ){
+  else if(i % 7 === 0){
 
     size=15;
 
@@ -848,19 +675,13 @@ function getShape(i){
   else{
 
     size=
-      11+
-      (i%3);
+      11 + (i % 3);
 
   }
 
-
   return {
-
-    type:
-      i%5,
-
+    type:i%5,
     size
-
   };
 
 }
@@ -896,9 +717,7 @@ const MARKERS = [
 
 function tooCloseToMarker(x,y){
 
-  for(
-    const m of MARKERS
-  ){
+  for(const m of MARKERS){
 
     const dx =
       x-m.x;
@@ -909,10 +728,8 @@ function tooCloseToMarker(x,y){
 
     if(
       Math.sqrt(
-        dx*dx+
-        dy*dy
-      )
-      <
+        dx*dx+dy*dy
+      ) <
       MARKER_EXCLUSION
     ){
 
@@ -922,14 +739,13 @@ function tooCloseToMarker(x,y){
 
   }
 
-
   return false;
 
 }
 
 
 /* =========================================================
-   固定スロット作成
+   固定スロット
 ========================================================= */
 
 function createSlots(){
@@ -938,41 +754,35 @@ function createSlots(){
 
 
   for(
-    const minDistance
-    of DISTANCES
+    const minDistance of DISTANCES
   ){
 
     const candidates=[];
 
 
-    for(
-      let i=0;
-      i<30000;
-      i++
-    ){
+    for(let i=0;i<30000;i++){
 
       const angle =
-        random()*
-        Math.PI*
-        2;
+        random() *
+        Math.PI * 2;
 
 
-      const rr =
-        Math.sqrt(random())*
-        (MAX_R-MIN_R)+
+      const radius =
+        Math.sqrt(random()) *
+        (MAX_R-MIN_R) +
         MIN_R;
 
 
       const x =
-        CENTER+
-        Math.cos(angle)*
-        rr;
+        CENTER +
+        Math.cos(angle) *
+        radius;
 
 
       const y =
-        CENTER+
-        Math.sin(angle)*
-        rr;
+        CENTER +
+        Math.sin(angle) *
+        radius;
 
 
       const dx =
@@ -982,16 +792,15 @@ function createSlots(){
         y-CENTER;
 
 
-      const radius =
+      const r =
         Math.sqrt(
-          dx*dx+
-          dy*dy
+          dx*dx+dy*dy
         );
 
 
       if(
-        radius<MIN_R ||
-        radius>MAX_R
+        r < MIN_R ||
+        r > MAX_R
       ){
 
         continue;
@@ -1009,22 +818,14 @@ function createSlots(){
 
 
       candidates.push({
-
         x,
         y,
-
         angle,
-
         radius
-
       });
 
     }
 
-
-    /*
-      シャッフル
-    */
 
     for(
       let i=candidates.length-1;
@@ -1034,21 +835,17 @@ function createSlots(){
 
       const j =
         Math.floor(
-          random()*
-          (i+1)
+          random()*(i+1)
         );
 
 
-      const temp =
-        candidates[i];
-
-
-      candidates[i]=
-        candidates[j];
-
-
-      candidates[j]=
-        temp;
+      [
+        candidates[i],
+        candidates[j]
+      ]=[
+        candidates[j],
+        candidates[i]
+      ];
 
     }
 
@@ -1056,15 +853,11 @@ function createSlots(){
     const selected=[];
 
 
-    /*
-      図形同士が重ならないようにする
-    */
-
     for(
       const p of candidates
     ){
 
-      let ok=true;
+      let valid=true;
 
 
       for(
@@ -1079,14 +872,11 @@ function createSlots(){
 
 
         if(
-          dx*dx+
-          dy*dy
-          <
-          minDistance*
-          minDistance
+          dx*dx+dy*dy <
+          minDistance*minDistance
         ){
 
-          ok=false;
+          valid=false;
 
           break;
 
@@ -1095,7 +885,7 @@ function createSlots(){
       }
 
 
-      if(!ok){
+      if(!valid){
 
         continue;
 
@@ -1106,7 +896,7 @@ function createSlots(){
 
 
       if(
-        selected.length>=
+        selected.length >=
         SLOT_COUNT
       ){
 
@@ -1117,16 +907,12 @@ function createSlots(){
     }
 
 
-    /*
-      544個完成
-    */
-
     if(
-      selected.length>=
+      selected.length >=
       SLOT_COUNT
     ){
 
-      selected.length=
+      selected.length =
         SLOT_COUNT;
 
 
@@ -1134,7 +920,6 @@ function createSlots(){
         (p,i)=>({
 
           x:p.x,
-
           y:p.y,
 
           type:
@@ -1164,11 +949,10 @@ function createSlots(){
 
 
 /* =========================================================
-   スロットは最初に1回だけ生成
+   スロットは一度だけ生成
 ========================================================= */
 
-let SLOTS=null;
-
+let SLOTS;
 
 try{
 
@@ -1184,7 +968,7 @@ catch(error){
 
 
 /* =========================================================
-   SVG Element
+   SVG
 ========================================================= */
 
 function svgElement(name){
@@ -1198,10 +982,14 @@ function svgElement(name){
 
 
 /* =========================================================
-   データ図形
+   図形描画
 ========================================================= */
 
 function drawShape(svg,s){
+
+  const g =
+    svgElement("g");
+
 
   const size =
     s.size;
@@ -1210,59 +998,36 @@ function drawShape(svg,s){
     s.color;
 
 
-  const g =
-    svgElement("g");
-
-
-  /*
-    円
-  */
-
-  if(
-    s.type===0
-  ){
+  if(s.type===0){
 
     const e =
       svgElement("circle");
 
-
     e.setAttribute(
-      "cx",
-      s.x
+      "cx",s.x
     );
 
     e.setAttribute(
-      "cy",
-      s.y
+      "cy",s.y
     );
 
     e.setAttribute(
-      "r",
-      size
+      "r",size
     );
 
     e.setAttribute(
-      "fill",
-      color
+      "fill",color
     );
-
 
     g.appendChild(e);
 
   }
 
 
-  /*
-    丸角長方形
-  */
-
-  else if(
-    s.type===1
-  ){
+  else if(s.type===1){
 
     const e =
       svgElement("rect");
-
 
     e.setAttribute(
       "x",
@@ -1290,27 +1055,18 @@ function drawShape(svg,s){
     );
 
     e.setAttribute(
-      "fill",
-      color
+      "fill",color
     );
-
 
     g.appendChild(e);
 
   }
 
 
-  /*
-    三角
-  */
-
-  else if(
-    s.type===2
-  ){
+  else if(s.type===2){
 
     const e =
       svgElement("polygon");
-
 
     const h =
       size*1.35;
@@ -1325,29 +1081,19 @@ function drawShape(svg,s){
       ].join(" ")
     );
 
-
     e.setAttribute(
-      "fill",
-      color
+      "fill",color
     );
-
 
     g.appendChild(e);
 
   }
 
 
-  /*
-    ダイヤ
-  */
-
-  else if(
-    s.type===3
-  ){
+  else if(s.type===3){
 
     const e =
       svgElement("polygon");
-
 
     e.setAttribute(
       "points",
@@ -1359,27 +1105,19 @@ function drawShape(svg,s){
       ].join(" ")
     );
 
-
     e.setAttribute(
-      "fill",
-      color
+      "fill",color
     );
-
 
     g.appendChild(e);
 
   }
 
 
-  /*
-    横長丸角
-  */
-
   else{
 
     const e =
       svgElement("rect");
-
 
     e.setAttribute(
       "x",
@@ -1407,10 +1145,8 @@ function drawShape(svg,s){
     );
 
     e.setAttribute(
-      "fill",
-      color
+      "fill",color
     );
-
 
     g.appendChild(e);
 
@@ -1437,33 +1173,27 @@ function drawMarkers(svg){
 
 
     ring.setAttribute(
-      "cx",
-      m.x
+      "cx",m.x
     );
 
     ring.setAttribute(
-      "cy",
-      m.y
+      "cy",m.y
     );
 
     ring.setAttribute(
-      "r",
-      "38"
+      "r","38"
     );
 
     ring.setAttribute(
-      "fill",
-      "#FFFDF5"
+      "fill","#FFFDF5"
     );
 
     ring.setAttribute(
-      "stroke",
-      "#51483F"
+      "stroke","#51483F"
     );
 
     ring.setAttribute(
-      "stroke-width",
-      "7"
+      "stroke-width","7"
     );
 
 
@@ -1475,33 +1205,27 @@ function drawMarkers(svg){
 
 
     inner.setAttribute(
-      "cx",
-      m.x
+      "cx",m.x
     );
 
     inner.setAttribute(
-      "cy",
-      m.y
+      "cy",m.y
     );
 
     inner.setAttribute(
-      "r",
-      "18"
+      "r","18"
     );
 
     inner.setAttribute(
-      "fill",
-      "none"
+      "fill","none"
     );
 
     inner.setAttribute(
-      "stroke",
-      "#51483F"
+      "stroke","#51483F"
     );
 
     inner.setAttribute(
-      "stroke-width",
-      "6"
+      "stroke-width","6"
     );
 
 
@@ -1513,23 +1237,19 @@ function drawMarkers(svg){
 
 
     dot.setAttribute(
-      "cx",
-      m.x
+      "cx",m.x
     );
 
     dot.setAttribute(
-      "cy",
-      m.y
+      "cy",m.y
     );
 
     dot.setAttribute(
-      "r",
-      "5"
+      "r","5"
     );
 
     dot.setAttribute(
-      "fill",
-      "#51483F"
+      "fill","#51483F"
     );
 
 
@@ -1550,41 +1270,29 @@ function drawPote(svg){
     svgElement("g");
 
 
-  /*
-    本体
-  */
-
   const body =
     svgElement("circle");
 
 
   body.setAttribute(
-    "cx",
-    "750"
+    "cx","750"
   );
 
   body.setAttribute(
-    "cy",
-    "750"
+    "cy","750"
   );
 
   body.setAttribute(
-    "r",
-    "78"
+    "r","78"
   );
 
   body.setAttribute(
-    "fill",
-    "#D99A3D"
+    "fill","#D99A3D"
   );
 
 
   pote.appendChild(body);
 
-
-  /*
-    目
-  */
 
   for(
     const x of [725,775]
@@ -1595,23 +1303,19 @@ function drawPote(svg){
 
 
     eye.setAttribute(
-      "cx",
-      x
+      "cx",x
     );
 
     eye.setAttribute(
-      "cy",
-      "748"
+      "cy","748"
     );
 
     eye.setAttribute(
-      "r",
-      "5"
+      "r","5"
     );
 
     eye.setAttribute(
-      "fill",
-      "#51483F"
+      "fill","#51483F"
     );
 
 
@@ -1619,10 +1323,6 @@ function drawPote(svg){
 
   }
 
-
-  /*
-    口
-  */
 
   const mouth =
     svgElement("path");
@@ -1634,23 +1334,19 @@ function drawPote(svg){
   );
 
   mouth.setAttribute(
-    "fill",
-    "none"
+    "fill","none"
   );
 
   mouth.setAttribute(
-    "stroke",
-    "#51483F"
+    "stroke","#51483F"
   );
 
   mouth.setAttribute(
-    "stroke-width",
-    "5"
+    "stroke-width","5"
   );
 
   mouth.setAttribute(
-    "stroke-linecap",
-    "round"
+    "stroke-linecap","round"
   );
 
 
@@ -1668,15 +1364,6 @@ function drawPote(svg){
 
 function createSVG(text){
 
-  if(!SLOTS){
-
-    throw new Error(
-      "スロットを作成できません"
-    );
-
-  }
-
-
   const bits =
     encode(text);
 
@@ -1688,93 +1375,69 @@ function createSVG(text){
   svg.innerHTML="";
 
 
-  /*
-    背景
-  */
-
   const bg =
     svgElement("rect");
 
 
   bg.setAttribute(
-    "x",
-    "0"
+    "x","0"
   );
 
   bg.setAttribute(
-    "y",
-    "0"
+    "y","0"
   );
 
   bg.setAttribute(
-    "width",
-    SIZE
+    "width",SIZE
   );
 
   bg.setAttribute(
-    "height",
-    SIZE
+    "height",SIZE
   );
 
   bg.setAttribute(
-    "fill",
-    "#FFFDF7"
+    "fill","#FFFDF7"
   );
 
 
   svg.appendChild(bg);
 
 
-  /*
-    外周円
-  */
-
   const outer =
     svgElement("circle");
 
 
   outer.setAttribute(
-    "cx",
-    CENTER
+    "cx",CENTER
   );
 
   outer.setAttribute(
-    "cy",
-    CENTER
+    "cy",CENTER
   );
 
   outer.setAttribute(
-    "r",
-    "680"
+    "r","680"
   );
 
   outer.setAttribute(
-    "fill",
-    "none"
+    "fill","none"
   );
 
   outer.setAttribute(
-    "stroke",
-    "#D7CAB0"
+    "stroke","#D7CAB0"
   );
 
   outer.setAttribute(
-    "stroke-width",
-    "2"
+    "stroke-width","2"
   );
 
   outer.setAttribute(
-    "opacity",
-    ".3"
+    "opacity",".3"
   );
 
 
   svg.appendChild(outer);
 
-
-  /*
-    データ図形
-  */
 
   for(
     let i=0;
@@ -1782,9 +1445,7 @@ function createSVG(text){
     i++
   ){
 
-    if(
-      bits[i]!==1
-    ){
+    if(bits[i]!==1){
 
       continue;
 
@@ -1799,16 +1460,7 @@ function createSVG(text){
   }
 
 
-  /*
-    マーカー
-  */
-
   drawMarkers(svg);
-
-
-  /*
-    中央ポテちゃん
-  */
 
   drawPote(svg);
 
@@ -1820,99 +1472,78 @@ function createSVG(text){
 ========================================================= */
 
 document
-  .getElementById("generate")
-  .addEventListener(
-    "click",
-    ()=>{
+.getElementById("generate")
+.addEventListener(
+  "click",
+  ()=>{
 
-      const text =
-        document
-          .getElementById("text")
-          .value;
+    const text =
+      document.getElementById("text").value;
 
-
-      const status =
-        document
-          .getElementById("status");
+    const status =
+      document.getElementById("status");
 
 
-      /*
-        空文字
-      */
+    if(!text){
 
-      if(!text){
+      status.textContent =
+        "文字を入力してください";
 
-        status.textContent =
-          "文字を入力してください";
+      return;
 
-        return;
-
-      }
+    }
 
 
-      /*
-        見た目上の文字数
-      */
+    if(
+      characterCount(text)>MAX_CHARS
+    ){
 
-      const characterCount =
-        getCharacterCount(text);
+      status.textContent =
+        "30文字以内で入力してください";
+
+      return;
+
+    }
+
+
+    try{
+
+      const bytes =
+        encodeUTF8(text);
 
 
       if(
-        characterCount >
-        MAX_TEXT_CHARS
+        bytes.length>
+        MAX_UTF8_BYTES
       ){
 
         status.textContent =
-          "30文字以内で入力してください";
+          "UTF-8データが60バイトを超えています";
 
         return;
 
       }
 
 
-      try{
-
-        /*
-          UTF-8サイズ確認
-        */
-
-        const bytes =
-          textToUTF8(text);
+      createSVG(text);
 
 
-        if(
-          bytes.length > 60
-        ){
-
-          status.textContent =
-            "UTF-8データが大きすぎます";
-
-          return;
-
-        }
-
-
-        createSVG(text);
-
-
-        status.textContent =
-          "生成しました";
-
-      }
-      catch(error){
-
-        console.error(error);
-
-
-        status.textContent =
-          error.message ||
-          "生成に失敗しました";
-
-      }
+      status.textContent =
+        "生成しました";
 
     }
-  );
+    catch(error){
+
+      console.error(error);
+
+      status.textContent =
+        error.message ||
+        "生成に失敗しました";
+
+    }
+
+  }
+);
 
 
 /* =========================================================
