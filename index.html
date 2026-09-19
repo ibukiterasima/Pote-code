@@ -124,28 +124,40 @@ svg{
 <div class="app">
 
   <h1>POTE CODE</h1>
-  <div class="sub">見た目を保ったまま文字をコード化</div>
+
+  <div class="sub">
+    見た目を保ったまま文字をコード化
+  </div>
 
   <div class="card">
 
-    <textarea id="text"
+    <textarea
+      id="text"
       maxlength="30"
-      placeholder="ここに文字を入力（30文字まで）"></textarea>
+      placeholder="ここに文字を入力（30文字まで）"
+    ></textarea>
 
-    <button id="generate">POTE CODEを生成</button>
+    <button id="generate">
+      POTE CODEを生成
+    </button>
 
     <div class="canvasWrap">
-      <svg id="svg"
-           viewBox="0 0 1500 1500"
-           xmlns="http://www.w3.org/2000/svg">
+
+      <svg
+        id="svg"
+        viewBox="0 0 1500 1500"
+        xmlns="http://www.w3.org/2000/svg">
       </svg>
+
     </div>
 
     <div id="status" class="status"></div>
 
   </div>
 
-  <div class="ver">POTE CODE ver 1.2</div>
+  <div class="ver">
+    POTE CODE ver 1.2
+  </div>
 
 </div>
 
@@ -164,14 +176,10 @@ const SLOT_COUNT = 544;
 const MIN_R = 175;
 const MAX_R = 640;
 
-/*
-  ここが今回の修正版。
 
-  48px固定だと544個を配置できない場合があるため、
-  安全な範囲で自動的に少しずつ緩める。
-  
-  最大図形サイズは18pxなので、
-  最終的な36px以上なら基本的に図形同士は接触しない。
+/*
+  544個のスロットが入るまで
+  自動的に安全距離を少しずつ調整
 */
 const DISTANCES = [
   42,
@@ -183,6 +191,7 @@ const DISTANCES = [
 ];
 
 const MARKER_EXCLUSION = 105;
+
 
 const COLORS = [
   "#789B69",
@@ -201,7 +210,11 @@ const COLORS = [
 let seed = 9283746;
 
 function random(){
-  seed = (seed * 1664525 + 1013904223) >>> 0;
+
+  seed =
+    (seed * 1664525 + 1013904223)
+    >>> 0;
+
   return seed / 4294967296;
 }
 
@@ -222,7 +235,11 @@ function textBits(text){
       : 0;
 
     for(let b=15;b>=0;b--){
-      bits.push((code >> b) & 1);
+
+      bits.push(
+        (code >> b) & 1
+      );
+
     }
   }
 
@@ -243,10 +260,13 @@ function crc8(bits){
     const mix =
       ((crc >> 7) & 1) ^ bit;
 
-    crc = (crc << 1) & 255;
+    crc =
+      (crc << 1) & 255;
 
     if(mix){
+
       crc ^= 0x07;
+
     }
   }
 
@@ -260,20 +280,30 @@ function crc8(bits){
 
 function makePacket(text){
 
-  const body = textBits(text);
+  const body =
+    textBits(text);
 
   const lengthBits = [];
 
   for(let b=4;b>=0;b--){
-    lengthBits.push((text.length >> b) & 1);
+
+    lengthBits.push(
+      (text.length >> b) & 1
+    );
+
   }
 
-  const crc = crc8(body);
+  const crc =
+    crc8(body);
 
   const crcBits = [];
 
   for(let b=7;b>=0;b--){
-    crcBits.push((crc >> b) & 1);
+
+    crcBits.push(
+      (crc >> b) & 1
+    );
+
   }
 
   return [
@@ -290,15 +320,27 @@ function makePacket(text){
 
 function C(n,k){
 
-  if(k<0 || k>n) return 0;
+  if(k<0 || k>n){
 
-  k=Math.min(k,n-k);
+    return 0;
+
+  }
+
+  k =
+    Math.min(
+      k,
+      n-k
+    );
 
   let result=1;
 
   for(let i=1;i<=k;i++){
+
     result =
-      result * (n-k+i) / i;
+      result *
+      (n-k+i) /
+      i;
+
   }
 
   return Math.round(result);
@@ -306,7 +348,7 @@ function C(n,k){
 
 
 /* =========================================================
-   数値化
+   ビット → 数値
 ========================================================= */
 
 function bitsToNumber(bits){
@@ -314,7 +356,10 @@ function bitsToNumber(bits){
   let n=0;
 
   for(const bit of bits){
-    n = n * 2 + bit;
+
+    n =
+      n * 2 + bit;
+
   }
 
   return n;
@@ -335,13 +380,18 @@ function unrank(rank){
   for(let i=0;i<32;i++){
 
     if(ones===0){
+
       bits.push(0);
+
       continue;
     }
 
     if(ones===32-i){
+
       bits.push(1);
+
       ones--;
+
       continue;
     }
 
@@ -355,8 +405,11 @@ function unrank(rank){
     }else{
 
       bits.push(1);
+
       r-=zeroCount;
+
       ones--;
+
     }
   }
 
@@ -370,7 +423,8 @@ function unrank(rank){
 
 function encode(text){
 
-  const packet = makePacket(text);
+  const packet =
+    makePacket(text);
 
   const output=[];
 
@@ -386,6 +440,7 @@ function encode(text){
       chunk.push(
         packet[index] || 0
       );
+
     }
 
     const value =
@@ -394,7 +449,9 @@ function encode(text){
     const groupBits =
       unrank(value);
 
-    output.push(...groupBits);
+    output.push(
+      ...groupBits
+    );
   }
 
   return output;
@@ -402,7 +459,7 @@ function encode(text){
 
 
 /* =========================================================
-   スロット用図形情報
+   図形情報
 ========================================================= */
 
 function getShape(i){
@@ -410,33 +467,57 @@ function getShape(i){
   let size;
 
   if(i % 23 === 0){
+
     size=18;
+
   }
   else if(i % 13 === 0){
+
     size=16;
+
   }
   else if(i % 7 === 0){
+
     size=15;
+
   }
   else{
+
     size=11+(i%3);
+
   }
 
   return {
+
     type:i%5,
+
     size
+
   };
 }
 
 
 /* =========================================================
-   マーカー
+   位置合わせマーカー
 ========================================================= */
 
 const MARKERS = [
-  {x:255,y:275},
-  {x:1245,y:275},
-  {x:255,y:1245}
+
+  {
+    x:255,
+    y:275
+  },
+
+  {
+    x:1245,
+    y:275
+  },
+
+  {
+    x:255,
+    y:1245
+  }
+
 ];
 
 
@@ -448,14 +529,22 @@ function tooCloseToMarker(x,y){
 
   for(const m of MARKERS){
 
-    const dx=x-m.x;
-    const dy=y-m.y;
+    const dx =
+      x-m.x;
+
+    const dy =
+      y-m.y;
 
     if(
-      Math.sqrt(dx*dx+dy*dy)
-      < MARKER_EXCLUSION
+      Math.sqrt(
+        dx*dx+dy*dy
+      )
+      <
+      MARKER_EXCLUSION
     ){
+
       return true;
+
     }
   }
 
@@ -464,146 +553,161 @@ function tooCloseToMarker(x,y){
 
 
 /* =========================================================
-   新しい固定スロット生成
+   スロット生成
 ========================================================= */
-
-/*
-  以前のランダム配置だけだと、
-
-    「あと数個だけ置けない」
-    
-  という状態になって
-
-    スロット作成に失敗しました
-
-  になっていた。
-
-  今回は、
-
-  1. 候補点を大量に作る
-  2. 円の中だけにする
-  3. マーカーを避ける
-  4. 一定距離以上を保つ
-  5. 544個になるまで選ぶ
-  6. もし足りなければ距離を少し緩める
-
-  という方式。
-*/
 
 function createSlots(){
 
-  /*
-    毎回同じ配置にする
-  */
   seed=9283746;
 
-  for(const minDistance of DISTANCES){
+
+  for(
+    const minDistance
+    of DISTANCES
+  ){
 
     const candidates=[];
 
+
     /*
-      ランダム候補をかなり多めに作る
+      候補点を大量生成
     */
+
     for(let i=0;i<30000;i++){
 
       const angle =
-        random()*Math.PI*2;
+        random() *
+        Math.PI * 2;
 
-      /*
-        面積が均等になるように sqrt
-      */
+
       const rr =
         Math.sqrt(
           random()
-        ) *
+        )
+        *
         (MAX_R-MIN_R)
-        + MIN_R;
+        +
+        MIN_R;
+
 
       const x =
         CENTER +
-        Math.cos(angle)*rr;
+        Math.cos(angle) *
+        rr;
+
 
       const y =
         CENTER +
-        Math.sin(angle)*rr;
+        Math.sin(angle) *
+        rr;
 
-      /*
-        円の外側に出ない
-      */
-      const dx=x-CENTER;
-      const dy=y-CENTER;
+
+      const dx =
+        x-CENTER;
+
+      const dy =
+        y-CENTER;
+
 
       const radius =
-        Math.sqrt(dx*dx+dy*dy);
+        Math.sqrt(
+          dx*dx+dy*dy
+        );
+
 
       if(
-        radius<MIN_R ||
-        radius>MAX_R
+        radius < MIN_R ||
+        radius > MAX_R
       ){
+
         continue;
+
       }
 
-      /*
-        マーカー周辺を空ける
-      */
-      if(tooCloseToMarker(x,y)){
+
+      if(
+        tooCloseToMarker(
+          x,
+          y
+        )
+      ){
+
         continue;
+
       }
+
 
       candidates.push({
+
         x,
         y,
+
         angle,
+
         radius,
-        score:Math.abs(
-          radius -
-          ((MIN_R+MAX_R)/2)
-        )
+
+        score:
+          Math.abs(
+            radius -
+            ((MIN_R+MAX_R)/2)
+          )
+
       });
+
     }
 
 
     /*
-      外側・内側に偏りすぎないよう、
-      ランダム性を残したまま並べる
+      シャッフル
     */
-    candidates.sort(
-      (a,b)=>
-        a.score-b.score
-    );
 
-
-    const selected=[];
-
-    /*
-      先頭から全部選ぶのではなく、
-      少しシャッフルする。
-    */
-    for(let i=candidates.length-1;i>0;i--){
+    for(
+      let i=candidates.length-1;
+      i>0;
+      i--
+    ){
 
       const j =
         Math.floor(
           random()*(i+1)
         );
 
-      const temp=candidates[i];
+      const temp =
+        candidates[i];
 
-      candidates[i]=candidates[j];
-      candidates[j]=temp;
+      candidates[i] =
+        candidates[j];
+
+      candidates[j] =
+        temp;
+
     }
 
 
-    for(const p of candidates){
+    const selected=[];
+
+
+    /*
+      距離チェックしながら選択
+    */
+
+    for(
+      const p of candidates
+    ){
 
       let ok=true;
 
-      /*
-        既存点との距離チェック
-      */
-      for(const q of selected){
 
-        const dx=p.x-q.x;
-        const dy=p.y-q.y;
+      for(
+        const q of selected
+      ){
+
+        const dx =
+          p.x-q.x;
+
+        const dy =
+          p.y-q.y;
+
 
         if(
           dx*dx+dy*dy
@@ -612,56 +716,75 @@ function createSlots(){
         ){
 
           ok=false;
+
           break;
+
         }
+
       }
 
-      if(!ok) continue;
+
+      if(!ok){
+
+        continue;
+
+      }
+
 
       selected.push(p);
 
-      if(selected.length>=SLOT_COUNT){
+
+      if(
+        selected.length >=
+        SLOT_COUNT
+      ){
+
         break;
+
       }
+
     }
 
 
     /*
-      544個できた！
+      544個揃った
     */
-    if(selected.length>=SLOT_COUNT){
 
-      /*
-        位置を安定させるため、
-        インデックス順に並べ直す
-      */
-      selected.length=SLOT_COUNT;
+    if(
+      selected.length >=
+      SLOT_COUNT
+    ){
+
+      selected.length =
+        SLOT_COUNT;
+
 
       return selected.map(
         (p,i)=>({
 
           x:p.x,
+
           y:p.y,
 
-          /*
-            図形情報も固定
-          */
-          type:getShape(i).type,
-          size:getShape(i).size,
+          type:
+            getShape(i).type,
+
+          size:
+            getShape(i).size,
 
           color:
             COLORS[
               i % COLORS.length
             ]
+
         })
       );
+
     }
+
   }
 
 
-  /*
-    通常ここには来ない。
-  */
   throw new Error(
     "スロットを作成できませんでした"
   );
@@ -669,62 +792,94 @@ function createSlots(){
 
 
 /* =========================================================
-   SVG描画
+   SVG生成
 ========================================================= */
 
 function createSVG(text){
 
-  const bits=encode(text);
+  const bits =
+    encode(text);
 
-  const slots=createSlots();
+  const slots =
+    createSlots();
 
-  const svg=
-    document.getElementById("svg");
+
+  const svg =
+    document.getElementById(
+      "svg"
+    );
+
 
   svg.innerHTML="";
 
 
-  /* ---------------------------------------------
+  /* =====================================================
      背景
-  --------------------------------------------- */
+  ===================================================== */
 
-  const bg=
+  const bg =
     document.createElementNS(
       "http://www.w3.org/2000/svg",
       "rect"
     );
 
-  bg.setAttribute("x","0");
-  bg.setAttribute("y","0");
-  bg.setAttribute("width","1500");
-  bg.setAttribute("height","1500");
-  bg.setAttribute("fill","#FFFDF7");
+  bg.setAttribute(
+    "x","0"
+  );
+
+  bg.setAttribute(
+    "y","0"
+  );
+
+  bg.setAttribute(
+    "width","1500"
+  );
+
+  bg.setAttribute(
+    "height","1500"
+  );
+
+  bg.setAttribute(
+    "fill","#FFFDF7"
+  );
 
   svg.appendChild(bg);
 
 
-  /* ---------------------------------------------
+  /* =====================================================
      外周円
-  --------------------------------------------- */
+  ===================================================== */
 
-  const outer=
+  const outer =
     document.createElementNS(
       "http://www.w3.org/2000/svg",
       "circle"
     );
 
-  outer.setAttribute("cx","750");
-  outer.setAttribute("cy","750");
-  outer.setAttribute("r","680");
+  outer.setAttribute(
+    "cx","750"
+  );
+
+  outer.setAttribute(
+    "cy","750"
+  );
+
+  outer.setAttribute(
+    "r","680"
+  );
+
   outer.setAttribute(
     "fill","none"
   );
+
   outer.setAttribute(
     "stroke","#D7CAB0"
   );
+
   outer.setAttribute(
     "stroke-width","2"
   );
+
   outer.setAttribute(
     "opacity",".3"
   );
@@ -732,96 +887,145 @@ function createSVG(text){
   svg.appendChild(outer);
 
 
-  /* ---------------------------------------------
+  /* =====================================================
      データ図形
-  --------------------------------------------- */
+  ===================================================== */
 
-  for(let i=0;i<SLOT_COUNT;i++){
+  for(
+    let i=0;
+    i<SLOT_COUNT;
+    i++
+  ){
+
+    /*
+      0 = 図形なし
+      1 = 図形あり
+    */
 
     if(bits[i]!==1){
+
       continue;
+
     }
 
-    const s=slots[i];
 
-    const g=
+    const s =
+      slots[i];
+
+
+    const g =
       document.createElementNS(
         "http://www.w3.org/2000/svg",
         "g"
       );
 
-    const color=s.color;
-    const size=s.size;
+
+    const color =
+      s.color;
+
+    const size =
+      s.size;
 
 
-    /* 円 */
+    /* ---------------------------------------------------
+       円
+    --------------------------------------------------- */
+
     if(s.type===0){
 
-      const e=
+      const e =
         document.createElementNS(
           "http://www.w3.org/2000/svg",
           "circle"
         );
 
-      e.setAttribute("cx",s.x);
-      e.setAttribute("cy",s.y);
-      e.setAttribute("r",size);
+      e.setAttribute(
+        "cx",
+        s.x
+      );
 
       e.setAttribute(
-        "fill",color
+        "cy",
+        s.y
+      );
+
+      e.setAttribute(
+        "r",
+        size
+      );
+
+      e.setAttribute(
+        "fill",
+        color
       );
 
       g.appendChild(e);
+
     }
 
 
-    /* 丸角長方形 */
+    /* ---------------------------------------------------
+       丸角長方形
+    --------------------------------------------------- */
+
     else if(s.type===1){
 
-      const e=
+      const e =
         document.createElementNS(
           "http://www.w3.org/2000/svg",
           "rect"
         );
 
       e.setAttribute(
-        "x",s.x-size
+        "x",
+        s.x-size
       );
 
       e.setAttribute(
-        "y",s.y-size*.72
+        "y",
+        s.y-size*.72
       );
 
       e.setAttribute(
-        "width",size*2
+        "width",
+        size*2
       );
 
       e.setAttribute(
-        "height",size*1.44
+        "height",
+        size*1.44
       );
 
       e.setAttribute(
-        "rx",size*.5
+        "rx",
+        size*.5
       );
 
       e.setAttribute(
-        "fill",color
+        "fill",
+        color
       );
 
       g.appendChild(e);
+
     }
 
 
-    /* 三角 */
+    /* ---------------------------------------------------
+       三角
+    --------------------------------------------------- */
+
     else if(s.type===2){
 
-      const e=
+      const e =
         document.createElementNS(
           "http://www.w3.org/2000/svg",
           "polygon"
         );
 
-      const h=size*1.35;
+      const h =
+        size*1.35;
+
 
       e.setAttribute(
         "points",
@@ -832,22 +1036,30 @@ function createSVG(text){
         ].join(" ")
       );
 
+
       e.setAttribute(
-        "fill",color
+        "fill",
+        color
       );
 
+
       g.appendChild(e);
+
     }
 
 
-    /* ダイヤ */
+    /* ---------------------------------------------------
+       ダイヤ
+    --------------------------------------------------- */
+
     else if(s.type===3){
 
-      const e=
+      const e =
         document.createElementNS(
           "http://www.w3.org/2000/svg",
           "polygon"
         );
+
 
       e.setAttribute(
         "points",
@@ -859,303 +1071,360 @@ function createSVG(text){
         ].join(" ")
       );
 
+
       e.setAttribute(
-        "fill",color
+        "fill",
+        color
       );
 
+
       g.appendChild(e);
+
     }
 
 
-    /* 横長丸角 */
+    /* ---------------------------------------------------
+       横長丸角
+    --------------------------------------------------- */
+
     else{
 
-      const e=
+      const e =
         document.createElementNS(
           "http://www.w3.org/2000/svg",
           "rect"
         );
 
-      e.setAttribute(
-        "x",s.x-size*1.25
-      );
 
       e.setAttribute(
-        "y",s.y-size*.55
+        "x",
+        s.x-size*1.25
       );
 
-      e.setAttribute(
-        "width",size*2.5
-      );
 
       e.setAttribute(
-        "height",size*1.1
+        "y",
+        s.y-size*.55
       );
 
-      e.setAttribute(
-        "rx",size*.5
-      );
 
       e.setAttribute(
-        "fill",color
+        "width",
+        size*2.5
       );
+
+
+      e.setAttribute(
+        "height",
+        size*1.1
+      );
+
+
+      e.setAttribute(
+        "rx",
+        size*.5
+      );
+
+
+      e.setAttribute(
+        "fill",
+        color
+      );
+
 
       g.appendChild(e);
+
     }
 
+
     svg.appendChild(g);
+
   }
 
 
-  /* ---------------------------------------------
-     3つの位置合わせマーカー
-  --------------------------------------------- */
+  /* =====================================================
+     位置合わせマーカー
+  ===================================================== */
 
-  for(const m of MARKERS){
+  for(
+    const m of MARKERS
+  ){
 
-    const ring=
+    /* 外側 */
+
+    const ring =
       document.createElementNS(
         "http://www.w3.org/2000/svg",
         "circle"
       );
 
-    ring.setAttribute(
-      "cx",m.x
-    );
 
     ring.setAttribute(
-      "cy",m.y
+      "cx",
+      m.x
     );
 
-    ring.setAttribute(
-      "r","38"
-    );
 
     ring.setAttribute(
-      "fill","#FFFDF5"
+      "cy",
+      m.y
     );
 
-    ring.setAttribute(
-      "stroke","#51483F"
-    );
 
     ring.setAttribute(
-      "stroke-width","7"
+      "r",
+      "38"
     );
+
+
+    ring.setAttribute(
+      "fill",
+      "#FFFDF5"
+    );
+
+
+    ring.setAttribute(
+      "stroke",
+      "#51483F"
+    );
+
+
+    ring.setAttribute(
+      "stroke-width",
+      "7"
+    );
+
 
     svg.appendChild(ring);
 
 
-    const inner=
+    /* 内側 */
+
+    const inner =
       document.createElementNS(
         "http://www.w3.org/2000/svg",
         "circle"
       );
 
-    inner.setAttribute(
-      "cx",m.x
-    );
 
     inner.setAttribute(
-      "cy",m.y
+      "cx",
+      m.x
     );
 
-    inner.setAttribute(
-      "r","18"
-    );
 
     inner.setAttribute(
-      "fill","none"
+      "cy",
+      m.y
     );
 
-    inner.setAttribute(
-      "stroke","#51483F"
-    );
 
     inner.setAttribute(
-      "stroke-width","6"
+      "r",
+      "18"
     );
+
+
+    inner.setAttribute(
+      "fill",
+      "none"
+    );
+
+
+    inner.setAttribute(
+      "stroke",
+      "#51483F"
+    );
+
+
+    inner.setAttribute(
+      "stroke-width",
+      "6"
+    );
+
 
     svg.appendChild(inner);
 
 
-    const dot=
+    /* 中央点 */
+
+    const dot =
       document.createElementNS(
         "http://www.w3.org/2000/svg",
         "circle"
       );
 
-    dot.setAttribute(
-      "cx",m.x
-    );
 
     dot.setAttribute(
-      "cy",m.y
+      "cx",
+      m.x
     );
 
-    dot.setAttribute(
-      "r","5"
-    );
 
     dot.setAttribute(
-      "fill","#51483F"
+      "cy",
+      m.y
     );
+
+
+    dot.setAttribute(
+      "r",
+      "5"
+    );
+
+
+    dot.setAttribute(
+      "fill",
+      "#51483F"
+    );
+
 
     svg.appendChild(dot);
+
   }
 
 
-  /* ---------------------------------------------
-     中央ポテちゃんマーク
-  --------------------------------------------- */
+  /* =====================================================
+     中央ポテちゃん
+     
+     ※外側に伸びる線なし
+     ※葉っぱなし
+     ※手なし
+  ===================================================== */
 
-  const pote=
+  const pote =
     document.createElementNS(
       "http://www.w3.org/2000/svg",
       "g"
     );
 
 
-  const body=
+  /* ポテちゃん本体 */
+
+  const body =
     document.createElementNS(
       "http://www.w3.org/2000/svg",
       "circle"
     );
 
-  body.setAttribute(
-    "cx","750"
-  );
 
   body.setAttribute(
-    "cy","750"
+    "cx",
+    "750"
   );
 
-  body.setAttribute(
-    "r","78"
-  );
 
   body.setAttribute(
-    "fill","#D99A3D"
+    "cy",
+    "750"
   );
+
+
+  body.setAttribute(
+    "r",
+    "78"
+  );
+
+
+  body.setAttribute(
+    "fill",
+    "#D99A3D"
+  );
+
 
   pote.appendChild(body);
 
 
-  /* 左側の小さな飾り */
+  /* =====================================================
+     目
+  ===================================================== */
 
-  const deco=
+  for(
+    const x of [725,775]
+  ){
+
+    const eye =
+      document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "circle"
+      );
+
+
+    eye.setAttribute(
+      "cx",
+      x
+    );
+
+
+    eye.setAttribute(
+      "cy",
+      "748"
+    );
+
+
+    eye.setAttribute(
+      "r",
+      "5"
+    );
+
+
+    eye.setAttribute(
+      "fill",
+      "#51483F"
+    );
+
+
+    pote.appendChild(eye);
+
+  }
+
+
+  /* =====================================================
+     口
+  ===================================================== */
+
+  const mouth =
     document.createElementNS(
       "http://www.w3.org/2000/svg",
       "path"
     );
 
-  deco.setAttribute(
-    "d",
-    "M700 705 C675 690 660 700 652 718"
-  );
-
-  deco.setAttribute(
-    "fill","none"
-  );
-
-  deco.setAttribute(
-    "stroke","#51483F"
-  );
-
-  deco.setAttribute(
-    "stroke-width","7"
-  );
-
-  deco.setAttribute(
-    "stroke-linecap","round"
-  );
-
-  pote.appendChild(deco);
-
-
-  /* 顔 */
-
-  const eye1=
-    document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "circle"
-    );
-
-  eye1.setAttribute(
-    "cx","725"
-  );
-
-  eye1.setAttribute(
-    "cy","748"
-  );
-
-  eye1.setAttribute(
-    "r","5"
-  );
-
-  eye1.setAttribute(
-    "fill","#51483F"
-  );
-
-  pote.appendChild(eye1);
-
-
-  const eye2=
-    document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "circle"
-    );
-
-  eye2.setAttribute(
-    "cx","775"
-  );
-
-  eye2.setAttribute(
-    "cy","748"
-  );
-
-  eye2.setAttribute(
-    "r","5"
-  );
-
-  eye2.setAttribute(
-    "fill","#51483F"
-  );
-
-  pote.appendChild(eye2);
-
-
-  const mouth=
-    document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "path"
-    );
 
   mouth.setAttribute(
     "d",
     "M735 770 Q750 782 765 770"
   );
 
-  mouth.setAttribute(
-    "fill","none"
-  );
 
   mouth.setAttribute(
-    "stroke","#51483F"
+    "fill",
+    "none"
   );
 
-  mouth.setAttribute(
-    "stroke-width","5"
-  );
 
   mouth.setAttribute(
-    "stroke-linecap","round"
+    "stroke",
+    "#51483F"
   );
+
+
+  mouth.setAttribute(
+    "stroke-width",
+    "5"
+  );
+
+
+  mouth.setAttribute(
+    "stroke-linecap",
+    "round"
+  );
+
 
   pote.appendChild(mouth);
 
 
   svg.appendChild(pote);
+
 }
 
 
@@ -1164,51 +1433,55 @@ function createSVG(text){
 ========================================================= */
 
 document
-.getElementById("generate")
-.addEventListener(
-  "click",
-  ()=>{
-    
-    const text=
-      document
-      .getElementById("text")
-      .value;
+  .getElementById("generate")
+  .addEventListener(
+    "click",
+    ()=>{
 
-    const status=
-      document
-      .getElementById("status");
+      const text =
+        document
+          .getElementById("text")
+          .value;
 
 
-    if(!text){
+      const status =
+        document
+          .getElementById("status");
 
-      status.textContent=
-        "文字を入力してください";
 
-      return;
+      if(!text){
+
+        status.textContent =
+          "文字を入力してください";
+
+        return;
+
+      }
+
+
+      try{
+
+        createSVG(text);
+
+        status.textContent =
+          "生成しました";
+
+      }
+      catch(error){
+
+        console.error(error);
+
+        status.textContent =
+          "生成に失敗しました";
+
+      }
+
     }
-
-
-    try{
-
-      createSVG(text);
-
-      status.textContent=
-        "生成しました";
-
-    }
-    catch(error){
-
-      console.error(error);
-
-      status.textContent=
-        "生成に失敗しました";
-    }
-  }
-);
+  );
 
 
 /* =========================================================
-   最初の表示
+   初期表示
 ========================================================= */
 
 try{
